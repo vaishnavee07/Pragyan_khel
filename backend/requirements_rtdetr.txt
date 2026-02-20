@@ -1,0 +1,17 @@
+# RT-DETR Installation - Phase 4 Upgrade
+
+# Core dependencies (existing)
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+opencv-python>=4.9.0
+numpy>=1.24.0
+websockets>=12.0
+psutil>=5.9.0
+
+# RT-DETR and dependencies
+torch>=2.0.0
+torchvision>=0.15.0
+ultralytics>=8.1.0
+
+# Optional: GPU acceleration (CUDA toolkit required)
+# Install CUDA toolkit separately from: https://developer.nvidia.com/cuda-downloads

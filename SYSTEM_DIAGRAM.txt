@@ -1,0 +1,356 @@
+# 🔷 SentraVision AI Vision Platform v2.0
+## System Architecture Diagram
+
+```
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                     SENTRAVISION AI VISION PLATFORM                        ║
+║                              Version 2.0                                   ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          PRESENTATION LAYER                              │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓    │
+│  ┃              Enterprise Web UI (frontend_v2.html)              ┃    │
+│  ┃                                                                 ┃    │
+│  ┃  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┃    │
+│  ┃  │  Video    │  │   Mode    │  │ Detection │  │Performance│  ┃    │
+│  ┃  │  Stream   │  │ Selector  │  │   List    │  │   Bars    │  ┃    │
+│  ┃  └───────────┘  └───────────┘  └───────────┘  └───────────┘  ┃    │
+│  ┃                                                                 ┃    │
+│  ┃  Features: Gradient UI, Animations, Real-time Stats, Alerts    ┃    │
+│  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛    │
+│                                                                          │
+└──────────────────────────────┬───────────────────────────────────────────┘
+                                │ WebSocket (ws://localhost:8000/ws/video)
+                                │ REST API (http://localhost:8000)
+                                ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                            API LAYER                                     │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓    │
+│  ┃                  FastAPI Application (main.py)                  ┃    │
+│  ┃                                                                 ┃    │
+│  ┃  REST Endpoints:                  WebSocket:                   ┃    │
+│  ┃  • GET  /                         • /ws/video                  ┃    │
+│  ┃  • GET  /health                   • Real-time streaming        ┃    │
+│  ┃  • GET  /modes                    • Mode switching             ┃    │
+│  ┃  • POST /modes/{mode}/activate    • Performance data          ┃    │
+│  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛    │
+│                                                                          │
+│  ┌────────────────────────────────────────────────────────────────┐    │
+│  │       WebSocket Handler (api/websocket_handler.py)             │    │
+│  │                                                                 │    │
+│  │  • Connection management          • Frame annotation           │    │
+│  │  • Protocol handling              • Payload construction       │    │
+│  │  • Mode switching                 • Performance throttling     │    │
+│  └────────────────────────────────────────────────────────────────┘    │
+│                                                                          │
+└──────────────────────────────┬───────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          CORE AI LAYER                                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓    │
+│  ┃              AI Engine (core/ai_engine.py)                      ┃    │
+│  ┃                                                                 ┃    │
+│  ┃  • Module Registration           • Mode Switching              ┃    │
+│  ┃  • Frame Processing Pipeline     • Resource Management         ┃    │
+│  ┃  • Thread-safe Operations        • Shutdown Cleanup            ┃    │
+│  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛    │
+│                                                                          │
+│                     ┌─────────────────────────┐                         │
+│                     │   BaseAIModule (ABC)    │                         │
+│                     │  core/base_module.py    │                         │
+│                     │                         │                         │
+│                     │  Abstract Methods:      │                         │
+│                     │  • initialize()         │                         │
+│                     │  • process_frame()      │                         │
+│                     │  • cleanup()            │                         │
+│                     └───────────┬─────────────┘                         │
+│                                 │                                        │
+│                     ┌───────────┴────────────┐                          │
+│                     │                        │                          │
+│         ┌───────────▼─────────┐  ┌──────────▼──────────┐              │
+│         │ Object Detection    │  │  Future Modules     │              │
+│         │     Module          │  │                     │              │
+│         │                     │  │  • Face Recognition │              │
+│         │ modules/            │  │  • Motion Tracking  │              │
+│         │ object_detection.py │  │  • Pose Estimation  │              │
+│         │                     │  │  • ...              │              │
+│         │ • Demo mode ready   │  └─────────────────────┘              │
+│         │ • TFLite structure  │                                       │
+│         │ • 80 COCO classes   │                                       │
+│         └─────────────────────┘                                       │
+│                                                                          │
+└──────────────────────────────┬───────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      SUPPORT SERVICES LAYER                              │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌────────────────────────┐  ┌─────────────────────┐  ┌──────────────┐ │
+│  │   Camera Service       │  │  Performance        │  │   Alert      │ │
+│  │   services/            │  │    Service          │  │   Engine     │ │
+│  │   camera_service.py    │  │  services/          │  │  core/       │ │
+│  │                        │  │  performance_       │  │  alert_      │ │
+│  │ • DirectShow backend   │  │  service.py         │  │  engine.py   │ │
+│  │ • FPS tracking         │  │                     │  │              │ │
+│  │ • Resolution config    │  │ • Adaptive frame    │  │ • 3 Levels   │ │
+│  │ • Resource cleanup     │  │   skipping          │  │ • Rules      │ │
+│  │ • Buffer management    │  │ • CPU/memory track  │  │ • History    │ │
+│  │ • Auto-detection       │  │ • Performance       │  │ • Colors     │ │
+│  │                        │  │   metrics           │  │              │ │
+│  └────────────────────────┘  └─────────────────────┘  └──────────────┘ │
+│                                                                          │
+└──────────────────────────────┬───────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         HARDWARE LAYER                                   │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  📹 Camera (USB/Built-in)  →  OpenCV (cv2)  →  DirectShow Backend      │
+│                               640x480 @ 30fps                            │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════
+                            DATA FLOW DIAGRAM
+═══════════════════════════════════════════════════════════════════════════
+
+1. Camera Capture Flow:
+   ┌────────┐    ┌─────────┐    ┌────────┐    ┌─────────┐
+   │ Camera │───▶│ DirectS │───▶│ OpenCV │───▶│  Frame  │
+   │        │    │  how    │    │        │    │ Buffer  │
+   └────────┘    └─────────┘    └────────┘    └─────────┘
+
+2. AI Processing Flow:
+   ┌───────┐    ┌──────┐    ┌────────┐    ┌─────────┐    ┌────────┐
+   │ Frame │───▶│ Skip │───▶│ Active │───▶│ Inference│───▶│ Result │
+   │       │    │Check │    │ Module │    │          │    │        │
+   └───────┘    └──────┘    └────────┘    └─────────┘    └────────┘
+
+3. Alert Evaluation Flow:
+   ┌────────┐    ┌──────┐    ┌───────┐    ┌────────┐
+   │ Result │───▶│ Alert│───▶│ Rules │───▶│ Level  │
+   │        │    │Engine│    │ Check │    │(N/W/C) │
+   └────────┘    └──────┘    └───────┘    └────────┘
+
+4. Response Flow:
+   ┌────────┐    ┌────────┐    ┌────────┐    ┌─────────┐    ┌──────┐
+   │ Result │───▶│ Frame  │───▶│ JPEG   │───▶│ Base64  │───▶│ JSON │
+   │        │    │Annotate│    │Encode  │    │ Encode  │    │      │
+   └────────┘    └────────┘    └────────┘    └─────────┘    └──────┘
+                                                                 │
+                                                                 ▼
+                                                          ┌──────────────┐
+                                                          │  WebSocket   │
+                                                          │  Send to UI  │
+                                                          └──────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════
+                          MODULE COMMUNICATION
+═══════════════════════════════════════════════════════════════════════════
+
+┌─────────────┐
+│   main.py   │  Startup: Initialize AI Engine, Register Modules
+└──────┬──────┘
+       │
+       ├──▶ ai_engine.register_module('object_detection', module)
+       │
+       └──▶ ai_engine.switch_mode('object_detection')
+              │
+              ▼
+       ┌─────────────┐
+       │  AI Engine  │ ◀──── WebSocket Handler requests processing
+       └──────┬──────┘
+              │
+              ├──▶ active_module.process_frame(frame)
+              │      │
+              │      └──▶ Returns InferenceResult
+              │
+              ├──▶ alert_engine.evaluate(result)
+              │      │
+              │      └──▶ Returns AlertLevel
+              │
+              └──▶ Returns enriched InferenceResult
+                     │
+                     ▼
+              ┌──────────────────┐
+              │ WebSocket Handler│
+              └──────┬───────────┘
+                     │
+                     ├──▶ camera_service.read()
+                     │
+                     ├──▶ performance_service.update()
+                     │
+                     └──▶ Send JSON to client
+
+
+═══════════════════════════════════════════════════════════════════════════
+                           ALERT SYSTEM FLOW
+═══════════════════════════════════════════════════════════════════════════
+
+┌─────────────────┐
+│ Inference Result│
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────────────────────────┐
+│      Alert Engine Evaluation        │
+├─────────────────────────────────────┤
+│                                     │
+│  IF detections >= 5                 │───▶ CRITICAL
+│  ELSE IF detections >= 3            │───▶ WARNING
+│  ELSE IF 'dangerous_object'         │───▶ CRITICAL
+│  ELSE                               │───▶ NORMAL
+│                                     │
+└─────────────────┬───────────────────┘
+                  │
+                  ▼
+         ┌────────────────┐
+         │  Visual Output │
+         ├────────────────┤
+         │ NORMAL:   🟢   │  Green border (4px)
+         │ WARNING:  🟠   │  Orange border (6px)
+         │ CRITICAL: 🔴   │  Red border (8px)
+         └────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════
+                      PERFORMANCE MONITORING FLOW
+═══════════════════════════════════════════════════════════════════════════
+
+┌──────────────┐
+│ Frame Process│
+└──────┬───────┘
+       │
+       ├──▶ Measure inference_time
+       │
+       ├──▶ Track FPS (rolling window)
+       │
+       ├──▶ Monitor CPU (psutil)
+       │
+       └──▶ Monitor Memory (psutil)
+              │
+              ▼
+       ┌─────────────────┐
+       │ Performance      │
+       │ Service          │
+       ├─────────────────┤
+       │                 │
+       │ IF avg_inf>100ms│───▶ frame_skip += 1
+       │ IF avg_inf<50ms │───▶ frame_skip -= 1
+       │                 │
+       └────────┬────────┘
+                │
+                ▼
+         Send metrics to UI
+         • FPS: current, avg, min, max
+         • Inference: current, avg
+         • System: CPU %, Memory %
+         • Frame skip: current value
+
+
+═══════════════════════════════════════════════════════════════════════════
+                           FILE DEPENDENCIES
+═══════════════════════════════════════════════════════════════════════════
+
+main.py
+├─ core.ai_engine          (AIEngine)
+├─ modules.object_detection (ObjectDetectionModule)
+└─ api.websocket_handler   (WebSocketHandler)
+      │
+      ├─ core.ai_engine          (inject)
+      ├─ services.camera_service (CameraService)
+      └─ services.performance_service (PerformanceService)
+
+core/ai_engine.py
+├─ core.base_module        (BaseAIModule)
+└─ core.alert_engine       (AlertEngine)
+
+modules/object_detection.py
+└─ core.base_module        (inherits BaseAIModule)
+
+
+═══════════════════════════════════════════════════════════════════════════
+                             TECH STACK
+═══════════════════════════════════════════════════════════════════════════
+
+Backend:
+  • Python 3.9+
+  • FastAPI 0.109.0         (REST + WebSocket)
+  • uvicorn 0.27.0          (ASGI server)
+  • opencv-python 4.9.0.80  (Computer vision)
+  • numpy 1.26.3            (Array operations)
+  • psutil 5.9.8            (System monitoring)
+  • websockets 12.0         (Real-time protocol)
+
+Frontend:
+  • HTML5                   (Structure)
+  • CSS3                    (Styling, animations)
+  • JavaScript ES6+         (Logic, WebSocket client)
+  • WebSocket API           (Real-time communication)
+
+Architecture:
+  • Abstract Base Classes   (Polymorphism)
+  • Service Layer Pattern   (Separation of concerns)
+  • Strategy Pattern        (Switchable AI modes)
+  • Observer Pattern        (Alert monitoring)
+  • Dependency Injection    (Loose coupling)
+
+
+═══════════════════════════════════════════════════════════════════════════
+                          DEPLOYMENT VIEW
+═══════════════════════════════════════════════════════════════════════════
+
+                    ┌────────────────────┐
+                    │    User Browser    │
+                    │  (frontend_v2.html)│
+                    └─────────┬──────────┘
+                              │
+                    WebSocket │ 30 FPS video stream
+                    + REST API│ Mode switching
+                              │
+                              ▼
+                    ┌────────────────────┐
+                    │  FastAPI Server    │
+                    │  localhost:8000    │
+                    │                    │
+                    │  • HTTP/REST       │
+                    │  • WebSocket       │
+                    │  • CORS enabled    │
+                    └─────────┬──────────┘
+                              │
+                    ┌─────────▼──────────┐
+                    │   AI Engine        │
+                    │   (In-process)     │
+                    └─────────┬──────────┘
+                              │
+                    ┌─────────▼──────────┐
+                    │  Camera Hardware   │
+                    │  (USB/Built-in)    │
+                    └────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════
+                            STATUS: ✅ OPERATIONAL
+═══════════════════════════════════════════════════════════════════════════
+
+Backend:    ✅ Running on port 8000
+Frontend:   ✅ Accessible via browser
+Camera:     ✅ Streaming at 30 FPS
+AI Engine:  ✅ Object detection mode active
+Alerts:     ✅ 3-level system operational
+Performance:✅ Monitoring active
+API:        ✅ All endpoints responding
+WebSocket:  ✅ Real-time streaming functional
+

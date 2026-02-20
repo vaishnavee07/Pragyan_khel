@@ -1,0 +1,133 @@
+SENTRAVISION - FIXED SERVER SETUP
+═══════════════════════════════════════════════════════════════
+
+✅ ISSUE FIXED: Port conflict resolved
+✅ SERVER STATUS: Running on http://localhost:3000
+
+═══════════════════════════════════════════════════════════════
+HOW TO START THE SERVER
+═══════════════════════════════════════════════════════════════
+
+METHOD 1: From Root Folder (EASIEST)
+────────────────────────────────────
+Command:
+  cd "c:\Users\Vasihnavee\OneDrive\Desktop\SentraVision"
+  npm start
+
+This now works from the root folder!
+
+METHOD 2: From WebApp Folder (DIRECT)
+──────────────────────────────────────
+Command:
+  cd "c:\Users\Vasihnavee\OneDrive\Desktop\SentraVision\WebApp"
+  npm start
+
+METHOD 3: Batch File (ONE-CLICK)
+─────────────────────────────────
+Double-click: START.bat
+(Located in SentraVision root folder)
+
+METHOD 4: Python Alternative
+─────────────────────────────
+Command:
+  cd "c:\Users\Vasihnavee\OneDrive\Desktop\SentraVision\WebApp"
+  python -m http.server 8000
+
+Then open: http://localhost:8000
+
+═══════════════════════════════════════════════════════════════
+WHAT WAS FIXED
+═══════════════════════════════════════════════════════════════
+
+Problem 1: Port 3000 was already in use
+Solution: Added auto-kill of old processes
+
+Problem 2: npm start failed from root folder
+Solution: Created package.json in root with navigation
+
+Problem 3: Server startup errors
+Solution: Proper directory navigation in scripts
+
+═══════════════════════════════════════════════════════════════
+VERIFY SERVER IS RUNNING
+═══════════════════════════════════════════════════════════════
+
+Check with command:
+  netstat -ano | findstr ":3000"
+
+You should see:
+  TCP    0.0.0.0:3000       LISTENING
+
+═══════════════════════════════════════════════════════════════
+CURRENT STATUS
+═══════════════════════════════════════════════════════════════
+
+✅ Server: RUNNING
+✅ Port: 3000
+✅ Process ID: 11188
+✅ URL: http://localhost:3000
+✅ Browser: Should be open
+
+═══════════════════════════════════════════════════════════════
+TO STOP THE SERVER
+═══════════════════════════════════════════════════════════════
+
+Option 1: Press Ctrl+C in the terminal
+Option 2: Close the command window
+Option 3: Run command: 
+  netstat -ano | findstr ":3000"
+  Stop-Process -Id [PID] -Force
+
+Option 4: Kill all Node processes:
+  Get-Process node | Stop-Process -Force
+
+═══════════════════════════════════════════════════════════════
+BROWSER ACCESS
+═══════════════════════════════════════════════════════════════
+
+Local:    http://localhost:3000
+Network:  http://[YOUR-IP]:3000
+
+From phone/tablet on same WiFi:
+1. Run: ipconfig
+2. Find IPv4 Address (e.g., 192.168.1.100)
+3. Open: http://192.168.1.100:3000
+
+═══════════════════════════════════════════════════════════════
+TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════
+
+Error: "EADDRINUSE: address already in use"
+Fix: Port 3000 is occupied
+  netstat -ano | findstr ":3000"
+  Stop-Process -Id [PID] -Force
+  Then restart: npm start
+
+Error: "Cannot find module 'express'"
+Fix: Dependencies not installed
+  cd WebApp
+  npm install
+  npm start
+
+Error: "npm start fails from root"
+Fix: Use one of these:
+  cd WebApp && npm start
+  OR use START.bat
+
+Camera not working:
+- Allow camera permissions in browser
+- Use HTTPS or localhost (already on localhost)
+- Check browser console (F12) for errors
+
+═══════════════════════════════════════════════════════════════
+NEXT STEPS
+═══════════════════════════════════════════════════════════════
+
+Server should now be running at http://localhost:3000
+
+1. Browser should already be open
+2. Allow camera permissions when prompted
+3. Wait 5-10 seconds for AI models to load
+4. Real-time detection will start automatically
+
+Enjoy SentraVision! 🎥

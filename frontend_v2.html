@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SentraVision AI Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .status-bar {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.green { background: #10b981; }
+        .status-dot.orange { background: #f59e0b; }
+        .status-dot.red { background: #ef4444; }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            animation: fadeIn 1s ease-out;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+
+        .card-header {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 4/3;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #videoStream {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .mode-selector {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .mode-btn {
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+        }
+
+        .mode-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .mode-btn.active {
+            background: rgba(102, 126, 234, 0.5);
+            border-color: #667eea;
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .detections-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+
+        .detection-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .performance-bars {
+            margin-top: 15px;
+        }
+
+        .bar-container {
+            margin-bottom: 15px;
+        }
+
+        .bar-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        .bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #3b82f6);
+            transition: width 0.3s ease;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .alert-banner {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+            display: none;
+        }
+
+        .alert-banner.show {
+            display: block;
+            animation: fadeInDown 0.5s ease-out;
+        }
+
+        .alert-banner.normal { background: rgba(16, 185, 129, 0.3); }
+        .alert-banner.warning { background: rgba(245, 158, 11, 0.3); }
+        .alert-banner.critical { background: rgba(239, 68, 68, 0.3); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔷 SentraVision</h1>
+            <p class="subtitle">AI Vision Platform v2.0</p>
+        </header>
+
+        <div id="alertBanner" class="alert-banner">
+            <span id="alertText"></span>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-dot green" id="connectionStatus"></span>
+                <span id="connectionText">Connecting...</span>
+            </div>
+            <div class="status-item">
+                <span>Mode: </span>
+                <strong id="currentMode">None</strong>
+            </div>
+            <div class="status-item">
+                <span>Alert: </span>
+                <strong id="alertLevel">NORMAL</strong>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <div>
+                <div class="card">
+                    <div class="card-header">
+                        <span>📹 Live Feed</span>
+                        <span id="fpsDisplay">0 FPS</span>
+                    </div>
+                    <div class="video-container" id="videoContainer" style="cursor:crosshair;">
+                        <img id="videoStream" alt="Video Stream" style="pointer-events:none;">
+                        <!-- Autofocus mode badge -->
+                        <div id="autofocusBadge" style="
+                            display:none;
+                            position:absolute;top:10px;right:10px;
+                            background:rgba(30,64,175,0.85);
+                            color:#93c5fd;
+                            padding:4px 10px;
+                            border-radius:20px;
+                            font-size:0.78em;font-weight:600;
+                            border:1px solid rgba(96,165,250,0.4);
+                            pointer-events:none;
+                        ">&#127775; CINEMATIC MODE</div>
+                        <!-- Focus ring overlay -->
+                        <div id="focusRing" style="
+                            display:none;
+                            position:absolute;
+                            border:2px solid rgba(96,165,250,0.9);
+                            border-radius:50%;
+                            width:60px;height:60px;
+                            pointer-events:none;
+                            box-shadow:0 0 12px rgba(96,165,250,0.5);
+                            transition:opacity 0.4s;
+                        "></div>
+                        <div id="focusDot" style="
+                            display:none;
+                            position:absolute;
+                            width:10px;height:10px;
+                            background:rgba(96,165,250,0.95);
+                            border-radius:50%;
+                            pointer-events:none;
+                            box-shadow:0 0 8px 3px rgba(96,165,250,0.45);
+                        "></div>
+                        <div id="autofocusHint" style="
+                            display:none;
+                            position:absolute;inset:0;
+                            align-items:center;justify-content:center;
+                            flex-direction:column;
+                            color:rgba(147,197,253,0.9);
+                            font-size:0.95em;text-align:center;
+                            pointer-events:none;
+                        ">
+                            Click to set focus point<br>
+                            <span style="font-size:0.8em;opacity:0.7;">Double-click to reset</span>
+                        </div>
+                    </div>
+                    <div class="controls">
+                        <button class="btn btn-primary" id="startBtn">Start Vision</button>
+                        <button class="btn btn-secondary" id="stopBtn" disabled>Stop Vision</button>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 20px;">
+                    <div class="card-header">📊 Performance Metrics</div>
+                    <div class="performance-bars">
+                        <div class="bar-container">
+                            <div class="bar-label">
+                                <span>FPS</span>
+                                <span id="fpsValue">0</span>
+                            </div>
+                            <div class="bar">
+                                <div class="bar-fill" id="fpsBar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="bar-container">
+                            <div class="bar-label">
+                                <span>CPU Usage</span>
+                                <span id="cpuValue">0%</span>
+                            </div>
+                            <div class="bar">
+                                <div class="bar-fill" id="cpuBar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="bar-container">
+                            <div class="bar-label">
+                                <span>Memory Usage</span>
+                                <span id="memoryValue">0%</span>
+                            </div>
+                            <div class="bar">
+                                <div class="bar-fill" id="memoryBar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="card">
+                    <div class="card-header">🎯 AI Modes</div>
+                    <div class="mode-selector">
+                        <button class="mode-btn" data-mode="object_detection">
+                            <div style="font-size: 1.1em; font-weight: 600;">Object Detection</div>
+                            <div style="font-size: 0.85em; opacity: 0.8; margin-top: 5px;">
+                                Detect and classify objects in real-time
+                            </div>
+                        </button>
+                        <button class="mode-btn" data-mode="autofocus">
+                            <div style="font-size: 1.1em; font-weight: 600;">🎬 Cinematic Autofocus</div>
+                            <div style="font-size: 0.85em; opacity: 0.8; margin-top: 5px;">
+                                Click video to set depth-of-field focus
+                            </div>
+                        </button>
+                        <button class="mode-btn" data-mode="face_recognition" disabled>
+                            <div style="font-size: 1.1em; font-weight: 600;">Face Recognition</div>
+                            <div style="font-size: 0.85em; opacity: 0.8; margin-top: 5px;">
+                                Coming soon...
+                            </div>
+                        </button>
+                        <button class="mode-btn" data-mode="motion_tracking" disabled>
+                            <div style="font-size: 1.1em; font-weight: 600;">Motion Tracking</div>
+                            <div style="font-size: 0.85em; opacity: 0.8; margin-top: 5px;">
+                                Coming soon...
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 20px;">
+                    <div class="card-header">
+                        <span>🎯 Detections</span>
+                        <span id="detectionCount">0</span>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">Inference</div>
+                            <div class="stat-value" id="inferenceTime">0ms</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Objects</div>
+                            <div class="stat-value" id="objectCount">0</div>
+                        </div>
+                    </div>
+                    <div class="detections-list" id="detectionsList">
+                        <p style="text-align: center; opacity: 0.6; padding: 20px;">
+                            No detections yet
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let isConnected = false;
+
+        const elements = {
+            video: document.getElementById('videoStream'),
+            startBtn: document.getElementById('startBtn'),
+            stopBtn: document.getElementById('stopBtn'),
+            connectionStatus: document.getElementById('connectionStatus'),
+            connectionText: document.getElementById('connectionText'),
+            currentMode: document.getElementById('currentMode'),
+            alertLevel: document.getElementById('alertLevel'),
+            alertBanner: document.getElementById('alertBanner'),
+            alertText: document.getElementById('alertText'),
+            fpsDisplay: document.getElementById('fpsDisplay'),
+            detectionCount: document.getElementById('detectionCount'),
+            inferenceTime: document.getElementById('inferenceTime'),
+            objectCount: document.getElementById('objectCount'),
+            detectionsList: document.getElementById('detectionsList'),
+            fpsValue: document.getElementById('fpsValue'),
+            fpsBar: document.getElementById('fpsBar'),
+            cpuValue: document.getElementById('cpuValue'),
+            cpuBar: document.getElementById('cpuBar'),
+            memoryValue: document.getElementById('memoryValue'),
+            memoryBar: document.getElementById('memoryBar')
+        };
+
+        function connectWebSocket() {
+            ws = new WebSocket('ws://localhost:8000/ws/video');
+
+            ws.onopen = () => {
+                isConnected = true;
+                elements.connectionStatus.className = 'status-dot green';
+                elements.connectionText.textContent = 'Connected';
+                elements.startBtn.disabled = true;
+                elements.stopBtn.disabled = false;
+                console.log('✓ WebSocket connected');
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                // Handle non-frame messages (acks, mode switches) without touching video
+                if (data.type) {
+                    if (data.type === 'autofocus_ack') {
+                        console.log('[AUTOFOCUS] Backend confirmed focus:', data.x, data.y);
+                    } else if (data.type === 'autofocus_reset') {
+                        console.log('[AUTOFOCUS] Focus reset confirmed');
+                    } else if (data.type === 'mode_switched') {
+                        console.log('[MODE] Switched to:', data.mode, 'success:', data.success);
+                    }
+                    return;
+                }
+
+                if (data.error) {
+                    console.error('Error:', data.error);
+                    return;
+                }
+
+                // Guard: only set src when frame data is present
+                if (data.frame) {
+                    elements.video.src = `data:image/jpeg;base64,${data.frame}`;
+                }
+
+                // Update stats
+                elements.fpsDisplay.textContent = `${data.fps} FPS`;
+                elements.currentMode.textContent = data.mode.toUpperCase();
+                elements.inferenceTime.textContent = `${data.inference_time || 0}ms`;
+                elements.objectCount.textContent = data.detections || 0;
+                elements.detectionCount.textContent = data.detections || 0;
+
+                // Update alert level
+                const alertLevel = data.alert_level || 'normal';
+                elements.alertLevel.textContent = alertLevel.toUpperCase();
+                elements.alertLevel.style.color = getAlertColor(alertLevel);
+
+                // Show alert banner
+                if (alertLevel !== 'normal') {
+                    elements.alertBanner.className = `alert-banner ${alertLevel} show`;
+                    elements.alertText.textContent = `${alertLevel.toUpperCase()} ALERT: ${data.detections} objects detected`;
+                } else {
+                    elements.alertBanner.className = 'alert-banner';
+                }
+
+                // Update detections list
+                if (data.objects && data.objects.length > 0) {
+                    elements.detectionsList.innerHTML = data.objects.map(obj => `
+                        <div class="detection-item">
+                            <span>${obj.class}</span>
+                            <span>${(obj.confidence * 100).toFixed(0)}%</span>
+                        </div>
+                    `).join('');
+                } else {
+                    elements.detectionsList.innerHTML = '<p style="text-align: center; opacity: 0.6; padding: 20px;">No detections</p>';
+                }
+
+                // Update performance metrics
+                if (data.performance) {
+                    const perf = data.performance;
+                    updateBar(elements.fpsValue, elements.fpsBar, perf.fps.current, 30);
+                    updateBar(elements.cpuValue, elements.cpuBar, perf.system.cpu, 100, '%');
+                    updateBar(elements.memoryValue, elements.memoryBar, perf.system.memory, 100, '%');
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                elements.connectionStatus.className = 'status-dot red';
+                elements.connectionText.textContent = 'Error';
+            };
+
+            ws.onclose = () => {
+                isConnected = false;
+                elements.connectionStatus.className = 'status-dot orange';
+                elements.connectionText.textContent = 'Disconnected';
+                elements.startBtn.disabled = false;
+                elements.stopBtn.disabled = true;
+                console.log('✓ WebSocket closed');
+            };
+        }
+
+        function updateBar(valueElement, barElement, value, max, suffix = '') {
+            const displayValue = Math.round(value);
+            valueElement.textContent = `${displayValue}${suffix}`;
+            const percentage = Math.min((value / max) * 100, 100);
+            barElement.style.width = `${percentage}%`;
+        }
+
+        function getAlertColor(level) {
+            const colors = {
+                'normal': '#10b981',
+                'warning': '#f59e0b',
+                'critical': '#ef4444'
+            };
+            return colors[level] || '#10b981';
+        }
+
+        elements.startBtn.addEventListener('click', () => {
+            connectWebSocket();
+        });
+
+        elements.stopBtn.addEventListener('click', () => {
+            if (ws) {
+                ws.close();
+            }
+        });
+
+        // ── Autofocus click/double-click handling ──────────────────
+        let autofocusActive = false;
+        let focusDotPos = null;
+        let lastClickTime = 0;
+
+        document.getElementById('videoContainer').addEventListener('pointerdown', (e) => {
+            if (!autofocusActive || !isConnected || !ws) return;
+
+            const container = document.getElementById('videoContainer');
+            const rect = container.getBoundingClientRect();
+            const px = e.clientX - rect.left;
+            const py = e.clientY - rect.top;
+
+            // Scale to backend frame resolution (640×480)
+            const fx = Math.round((px / rect.width) * 640);
+            const fy = Math.round((py / rect.height) * 480);
+
+            const now = Date.now();
+            const isDouble = (now - lastClickTime) < 300;
+
+            if (isDouble) {
+                console.log('[AUTOFOCUS] Double-click → reset focus');
+                ws.send(JSON.stringify({ type: 'autofocus_double_click' }));
+                // Hide overlays
+                document.getElementById('focusRing').style.display = 'none';
+                document.getElementById('focusDot').style.display = 'none';
+                document.getElementById('autofocusHint').style.display = 'flex';
+                focusDotPos = null;
+            } else {
+                console.log('[AUTOFOCUS] Click → frame coords:', fx, fy);
+                ws.send(JSON.stringify({ type: 'autofocus_click', x: fx, y: fy }));
+
+                // Ripple ring
+                const ring = document.getElementById('focusRing');
+                ring.style.display = 'block';
+                ring.style.opacity = '1';
+                ring.style.left = (px - 30) + 'px';
+                ring.style.top  = (py - 30) + 'px';
+                // Fade out after 600ms
+                setTimeout(() => { ring.style.opacity = '0'; }, 100);
+                setTimeout(() => { ring.style.display = 'none'; ring.style.opacity = '1'; }, 700);
+
+                // Persistent dot
+                const dot = document.getElementById('focusDot');
+                dot.style.display = 'block';
+                dot.style.left = (px - 5) + 'px';
+                dot.style.top  = (py - 5) + 'px';
+
+                // Hide hint
+                document.getElementById('autofocusHint').style.display = 'none';
+            }
+            lastClickTime = now;
+        });
+
+        // ── Mode selector ─────────────────────────────────────────────
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (btn.disabled) return;
+
+                const mode = btn.dataset.mode;
+
+                // Update UI
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                // Send mode switch via JSON protocol
+                if (ws && isConnected) {
+                    ws.send(JSON.stringify({ type: 'switch_mode', mode: mode }));
+                    console.log('[MODE] Switching to:', mode);
+                }
+
+                // Toggle autofocus state
+                autofocusActive = (mode === 'autofocus');
+                document.getElementById('videoContainer').style.cursor = autofocusActive ? 'crosshair' : 'default';
+
+                if (autofocusActive) {
+                    document.getElementById('autofocusHint').style.display = 'flex';
+                    document.getElementById('autofocusBadge').style.display = 'block';
+                    document.getElementById('focusDot').style.display = 'none';
+                } else {
+                    document.getElementById('autofocusHint').style.display = 'none';
+                    document.getElementById('autofocusBadge').style.display = 'none';
+                    document.getElementById('focusDot').style.display = 'none';
+                    document.getElementById('focusRing').style.display = 'none';
+                }
+            });
+        });
+
+        // Auto-activate object detection mode
+        document.querySelector('[data-mode="object_detection"]').classList.add('active');
+    </script>
+</body>
+</html>

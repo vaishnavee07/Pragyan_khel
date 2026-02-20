@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SentraVision Web</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            overflow: hidden;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+            min-width: 300px;
+            font-size: 14px;
+            z-index: 10;
+        }
+
+        .metric {
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .metric-label {
+            font-weight: bold;
+        }
+
+        .metric-value {
+            color: #4CAF50;
+        }
+
+        #status {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        .status-normal {
+            background: #4CAF50;
+        }
+
+        .status-warning {
+            background: #FFC107;
+            color: #000;
+        }
+
+        .status-critical {
+            background: #F44336;
+        }
+
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 40px;
+            border-radius: 10px;
+            color: white;
+            text-align: center;
+            z-index: 100;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #error {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #F44336;
+            padding: 30px;
+            border-radius: 10px;
+            color: white;
+            text-align: center;
+            max-width: 500px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <h2>Initializing SentraVision</h2>
+        <div class="spinner"></div>
+        <p>Loading AI models...</p>
+    </div>
+
+    <div id="error">
+        <h2>Error</h2>
+        <p id="errorMessage"></p>
+    </div>
+
+    <div id="container">
+        <video id="video" autoplay playsinline></video>
+        <canvas id="canvas"></canvas>
+        
+        <div id="overlay">
+            <div id="status" class="status-normal">NORMAL</div>
+            
+            <div class="metric">
+                <span class="metric-label">Brightness:</span>
+                <span class="metric-value" id="brightness">0%</span>
+            </div>
+            
+            <div class="metric">
+                <span class="metric-label">Motion:</span>
+                <span class="metric-value" id="motion">0%</span>
+            </div>
+            
+            <div class="metric">
+                <span class="metric-label">Detections:</span>
+                <span class="metric-value" id="detections">0</span>
+            </div>
+            
+            <div class="metric">
+                <span class="metric-label">FPS:</span>
+                <span class="metric-value" id="fps">0</span>
+            </div>
+            
+            <div class="metric">
+                <span class="metric-label">Processing:</span>
+                <span class="metric-value" id="inference">0ms</span>
+            </div>
+            
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.3);">
+                <span style="color: #4CAF50;">🔒 100% On-Device Processing</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3"></script>
+    <script src="app.js"></script>
+</body>
+</html>

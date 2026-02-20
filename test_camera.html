@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SentraVision - Simple Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a0a;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        h1 {
+            margin-bottom: 20px;
+            color: #10b981;
+        }
+        #videoContainer {
+            position: relative;
+            max-width: 800px;
+            width: 100%;
+            background: #1a1a1a;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+        #videoFrame {
+            width: 100%;
+            display: block;
+        }
+        #stats {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 15px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        #status {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .connected {
+            background: #10b981;
+        }
+        .disconnected {
+            background: #ef4444;
+        }
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 12px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        #startBtn {
+            background: #10b981;
+            color: white;
+        }
+        #startBtn:hover {
+            background: #059669;
+        }
+        #stopBtn {
+            background: #ef4444;
+            color: white;
+        }
+        #stopBtn:hover {
+            background: #dc2626;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        #message {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+        .info {
+            background: #3b82f6;
+            display: block;
+        }
+        .error {
+            background: #ef4444;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔷 SentraVision - Camera Test</h1>
+    
+    <div id="videoContainer">
+        <img id="videoFrame" src="" alt="Video Feed">
+        <div id="status" class="disconnected">Disconnected</div>
+        <div id="stats">
+            <div>FPS: <span id="fps">0</span></div>
+            <div>Detections: <span id="detections">0</span></div>
+            <div>Inference: <span id="inference">0</span>ms</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="startBtn" onclick="startCamera()">Start Camera</button>
+        <button id="stopBtn" onclick="stopCamera()" disabled>Stop Camera</button>
+    </div>
+
+    <div id="message"></div>
+
+    <script>
+        let ws = null;
+        let isRunning = false;
+
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.textContent = text;
+            msg.className = type;
+        }
+
+        function updateStatus(connected) {
+            const status = document.getElementById('status');
+            status.textContent = connected ? 'Connected' : 'Disconnected';
+            status.className = connected ? 'connected' : 'disconnected';
+        }
+
+        function startCamera() {
+            if (isRunning) return;
+
+            showMessage('Connecting to backend...', 'info');
+            
+            // Connect to WebSocket
+            ws = new WebSocket('ws://localhost:8000/ws/video');
+            
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                updateStatus(true);
+                showMessage('Camera started successfully!', 'info');
+                isRunning = true;
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.error) {
+                        showMessage('Error: ' + data.error, 'error');
+                        stopCamera();
+                        return;
+                    }
+
+                    // Update video frame
+                    if (data.frame) {
+                        document.getElementById('videoFrame').src = 'data:image/jpeg;base64,' + data.frame;
+                    }
+
+                    // Update stats
+                    document.getElementById('fps').textContent = data.fps || 0;
+                    document.getElementById('detections').textContent = data.detections || 0;
+                    document.getElementById('inference').textContent = data.inference_time || 0;
+
+                } catch (err) {
+                    console.error('Parse error:', err);
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                showMessage('Connection error! Make sure backend is running on port 8000', 'error');
+                updateStatus(false);
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket closed');
+                updateStatus(false);
+                isRunning = false;
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                showMessage('Connection closed', 'info');
+            };
+        }
+
+        function stopCamera() {
+            if (ws) {
+                ws.send('close');
+                ws.close();
+                ws = null;
+            }
+            isRunning = false;
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+            showMessage('Camera stopped', 'info');
+            setTimeout(() => {
+                document.getElementById('message').style.display = 'none';
+            }, 3000);
+        }
+
+        // Test backend connection on load
+        fetch('http://localhost:8000/')
+            .then(res => res.json())
+            .then(data => {
+                showMessage('Backend detected: ' + data.status, 'info');
+                setTimeout(() => {
+                    document.getElementById('message').style.display = 'none';
+                }, 3000);
+            })
+            .catch(err => {
+                showMessage('Backend not responding! Start backend on port 8000', 'error');
+            });
+    </script>
+</body>
+</html>

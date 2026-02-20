@@ -1,0 +1,9 @@
+{
+  "name": "sentravision-root",
+  "version": "1.0.0",
+  "description": "SentraVision Project Root",
+  "scripts": {
+    "start": "cd WebApp && npm start",
+    "dev": "cd WebApp && node server.js"
+  }
+}
