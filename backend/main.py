@@ -53,9 +53,10 @@ ai_engine.register_module('object_detection', detection_module)
 
 # Register cinematic autofocus module
 autofocus_module = AutofocusModule({
-    'focus_radius': 150,
-    'blur_ksize':   51,
-    'feather':      40,
+    'bbox_size':    120,
+    'focus_radius': 75,    # tight circle around subject
+    'blur_ksize':   101,   # heavy background blur
+    'feather':      30,
 })
 ai_engine.register_module('autofocus', autofocus_module)
 

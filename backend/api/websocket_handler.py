@@ -5,12 +5,17 @@ Supports autofocus click events and cinematic composited frames.
 import asyncio
 import base64
 import json
+import time
 import cv2
 from fastapi import WebSocket, WebSocketDisconnect
 from typing import Optional
 from core.ai_engine import AIEngine
 from services.camera_service import CameraService
 from services.performance_service import PerformanceService
+
+# Target frame interval — caps stream at ~20 FPS to prevent browser overload
+_TARGET_FPS   = 20
+_FRAME_INTERVAL = 1.0 / _TARGET_FPS
 
 class WebSocketHandler:
     """Handles WebSocket connections for video streaming"""
@@ -34,10 +39,13 @@ class WebSocketHandler:
             return
         
         frame_count = 0
-        
+        last_send_time = 0.0
+
         try:
             while True:
-                # Check for client messages
+                loop_start = time.monotonic()
+
+                # Check for client messages (non-blocking, 1ms timeout)
                 try:
                     raw = await asyncio.wait_for(websocket.receive_text(), timeout=0.001)
                     await self._handle_message(websocket, raw)
@@ -125,9 +133,12 @@ class WebSocketHandler:
                 # Adaptive frame skip adjustment
                 if frame_count % 60 == 0:
                     performance.adjust_frame_skip()
-                
-                await asyncio.sleep(0.01)
-                
+
+                # Throttle to target FPS — sleep remaining time in frame interval
+                elapsed = time.monotonic() - loop_start
+                sleep_for = max(0.0, _FRAME_INTERVAL - elapsed)
+                await asyncio.sleep(sleep_for if sleep_for > 0 else 0.001)
+
         except WebSocketDisconnect:
             print("✓ WebSocket disconnected")
         except Exception as e:

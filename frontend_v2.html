@@ -428,7 +428,7 @@
                         <button class="mode-btn" data-mode="autofocus">
                             <div style="font-size: 1.1em; font-weight: 600;">🎬 Cinematic Autofocus</div>
                             <div style="font-size: 0.85em; opacity: 0.8; margin-top: 5px;">
-                                Click video to set depth-of-field focus
+                                Click to track subject &middot; Double-click to reset
                             </div>
                         </button>
                         <button class="mode-btn" data-mode="face_recognition" disabled>
@@ -510,8 +510,22 @@
                 console.log('✓ WebSocket connected');
             };
 
+        // Frame render guard — safe, with 200 ms timeout fallback
+        let renderPending = false;
+        function setVideoFrame(b64) {
+            if (renderPending) return;
+            renderPending = true;
+            const onDone = () => { renderPending = false; };
+            elements.video.onload  = onDone;
+            elements.video.onerror = onDone;
+            setTimeout(onDone, 200);   // safety release
+            elements.video.src = 'data:image/jpeg;base64,' + b64;
+        }
+
             ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
+                let data;
+                try { data = JSON.parse(event.data); }
+                catch(e) { console.error('JSON parse error', e); return; }
 
                 // Handle non-frame messages (acks, mode switches) without touching video
                 if (data.type) {
@@ -530,9 +544,9 @@
                     return;
                 }
 
-                // Guard: only set src when frame data is present
+                // Render frame (guarded against decode pile-up)
                 if (data.frame) {
-                    elements.video.src = `data:image/jpeg;base64,${data.frame}`;
+                    setVideoFrame(data.frame);
                 }
 
                 // Update stats
@@ -573,6 +587,25 @@
                     updateBar(elements.fpsValue, elements.fpsBar, perf.fps.current, 30);
                     updateBar(elements.cpuValue, elements.cpuBar, perf.system.cpu, 100, '%');
                     updateBar(elements.memoryValue, elements.memoryBar, perf.system.memory, 100, '%');
+                }
+
+                // Update autofocus tracker state badge
+                if (data.autofocus) {
+                    const badgeEl = document.getElementById('autofocusBadge');
+                    const state = data.autofocus.state;
+                    if (state === 'tracking') {
+                        badgeEl.style.background = 'rgba(16,185,129,0.85)';
+                        badgeEl.style.color = '#d1fae5';
+                        badgeEl.textContent = '\u25CF TRACKING';
+                    } else if (state === 'grace') {
+                        badgeEl.style.background = 'rgba(245,158,11,0.85)';
+                        badgeEl.style.color = '#fef3c7';
+                        badgeEl.textContent = '\u25CC Searching\u2026';
+                    } else {
+                        badgeEl.style.background = 'rgba(30,64,175,0.85)';
+                        badgeEl.style.color = '#93c5fd';
+                        badgeEl.textContent = '\u2728 CINEMATIC MODE';
+                    }
                 }
             };
 
