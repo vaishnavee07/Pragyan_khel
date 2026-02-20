@@ -72,12 +72,16 @@ class RTDETRDetectionModule(BaseAIModule):
             
         except ImportError as e:
             print(f"✗ RT-DETR not installed: {e}")
-            print("  Run: pip install ultralytics")
-            return False
+            print("  Run: pip install ultralytics  \u2014 running in demo mode")
+            self.model = "demo"
+            self.is_initialized = True
+            return True
             
         except Exception as e:
-            print(f"✗ Model initialization failed: {e}")
-            return False
+            print(f"\u2717 Model initialization failed: {e}  \u2014 running in demo mode")
+            self.model = "demo"
+            self.is_initialized = True
+            return True
     
     def process_frame(self, frame) -> InferenceResult:
         """Process frame with RT-DETR"""
@@ -140,10 +144,13 @@ class RTDETRDetectionModule(BaseAIModule):
         return self._create_result(detections, metrics, alert_level, inference_time)
     
     def _rtdetr_detection(self, frame) -> List[Dict]:
-        """Run RT-DETR inference"""
+        """Run RT-DETR inference (or demo mode if ultralytics not installed)."""
         if frame is None or self.model is None:
             return []
-        
+
+        if self.model == "demo":
+            return []
+
         try:
             # Run inference
             results = self.model(
