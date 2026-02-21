@@ -1,18 +1,24 @@
 """
 TrackingAutofocusEngine
 =======================
-CSRT-based subject tracker that drives dynamic autofocus blur.
+CSRT-based subject tracker with PIXEL-ACCURATE SEGMENTATION for blur masking.
+
+UPGRADE: Full Silhouette Subject Lock Mode
+- Uses AI segmentation (MediaPipe/DeepLabV3) instead of bounding boxes
+- Entire person silhouette stays sharp (arms, legs, hair, clothes)
+- Only background gets blurred
+- Morphological edge refinement prevents halo artifacts
 
 Pipeline per frame:
-  frame → tracker.update() → new bbox center → blur mask → composite
+  frame → tracker.update() → bbox → segmentation → binary mask → composite blur
 
-No deep-learning models. No detection dependencies. Pure OpenCV.
+Falls back to geometric masks if segmentation unavailable.
 """
 import time
 import threading
 import cv2
 import numpy as np
-from typing import Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -176,6 +182,46 @@ class TrackingAutofocusEngine:
         # focus_radius kept for API compatibility (used by set_focus_radius)
         self.focus_radius: int   = cfg.get('focus_radius', 75)
 
+        # ── SEGMENTATION UPGRADE ──────────────────────────────────────
+        # Pixel-accurate person segmentation for Full Silhouette Lock
+        self.use_segmentation:  bool  = cfg.get('use_segmentation', True)   # Enable segmentation
+        self.segmentation_threshold:  float = cfg.get('seg_threshold', 0.5) # Mask confidence
+        self.seg_edge_dilation:       int   = cfg.get('seg_dilation', 2)    # Morphological dilation (px)
+        self.seg_edge_feather:        int   = cfg.get('seg_feather', 2)     # Edge smoothing (px)
+        self.seg_frame_skip:          int   = cfg.get('seg_frame_skip', 0)  # Run seg every N frames (0=every frame)
+        self.seg_fallback_expand_pct: float = cfg.get('seg_fallback_expand', 0.20)  # Bbox expand on seg failure
+        
+        # Segmenter instance (injected via set_segmenter)
+        self._segmenter = None
+        self._seg_frame_counter = 0
+        self._last_seg_mask: Optional[np.ndarray] = None
+
+        # ── INSTANCE SEGMENTATION RESULTS (Phase 2) ──────────────────
+        # Fed each frame from YOLOv8SegModule before process_frame()
+        self._seg_detections: list             = []   # current frame dets
+        self._selected_track_id: Optional[int] = None # locked person ID
+        self._last_instance_mask: Optional[np.ndarray] = None  # most recent valid mask
+        self._seg_fail_count: int              = 0    # consecutive seg failures
+        self.seg_fail_max: int                 = 5    # frames before fallback kicks in
+
+        # ── DEPTH-BASED SMOOTH BLUR (Tasks 1-7) ──────────────────────
+        # DepthEstimator injected by AutofocusModule after initialize()
+        self._depth_estimator                        = None
+        # Per-frame temporal state
+        self._last_blur_map: Optional[np.ndarray]    = None   # Task 6 smoothing
+        # Tuning
+        self.depth_blur_k:          float = cfg.get('depth_blur_k',          3.5)
+        self.spatial_threshold_px:  float = cfg.get('spatial_threshold_px',  180.0)
+        self.spatial_reduce_frac:   float = cfg.get('spatial_reduce_frac',   0.45)
+        self.temporal_alpha:        float = cfg.get('temporal_alpha',         0.80)
+        self.rack_focus_duration:   float = cfg.get('rack_focus_duration',    0.40)
+        # Rack-focus animation state (Task 7)
+        self._depth_ref:            float = 0.5
+        self._prev_depth_ref:       float = 0.5
+        self._target_depth_ref:     float = 0.5
+        self._rack_focus_start:     float = 0.0
+        self._rack_focus_active:    bool  = False
+
         # Internal state
         self._lock             = threading.Lock()
         self._state            = self.STATE_IDLE
@@ -194,7 +240,8 @@ class TrackingAutofocusEngine:
 
         print(f"✓ TrackingAutofocusEngine  "
               f"bbox={self.bbox_size}px  radius={self.focus_radius}px  "
-              f"blur_k={self.blur_ksize}  grace={self.grace_period}s")
+              f"blur_k={self.blur_ksize}  grace={self.grace_period}s  "
+              f"segmentation={'ON' if self.use_segmentation else 'OFF'}")
 
     # ──────────────────────────────────────────────────── public API ──────────
 
@@ -222,6 +269,56 @@ class TrackingAutofocusEngine:
             self.blur_ksize  = k
             self._mask_cache = None
         print(f"[TRACKER] blur_ksize → {k}")
+
+    def set_segmenter(self, segmenter):
+        """
+        Inject PersonSegmentation module for pixel-accurate masking.
+        
+        Args:
+            segmenter: PersonSegmentation instance
+        """
+        with self._lock:
+            self._segmenter = segmenter
+            self._mask_cache = None  # Invalidate cache
+        print(f"[TRACKER] Segmenter {'injected' if segmenter else 'removed'}")
+
+    def set_segmentation_enabled(self, enabled: bool):
+        """
+        Enable/disable segmentation-based masking.
+        Falls back to geometric masks when disabled.
+        
+        Args:
+            enabled: True = use segmentation, False = use bbox masks
+        """
+        with self._lock:
+            self.use_segmentation = enabled
+            self._mask_cache = None
+            self._last_seg_mask = None
+        print(f"[TRACKER] Segmentation {'enabled' if enabled else 'disabled'}")
+
+    def set_depth_estimator(self, estimator) -> None:
+        """
+        Inject a DepthEstimator instance for depth-based cinematic blur.
+        Call after initialize() from AutofocusModule.
+        """
+        with self._lock:
+            self._depth_estimator = estimator
+        print(f"[TRACKER] DepthEstimator {'injected' if estimator else 'removed'}")
+
+    def feed_seg_detections(self, detections: list):
+        """
+        Phase 2 — Called by AutofocusModule BEFORE process_frame().
+
+        Stores YOLOv8-seg detection results for the current frame so
+        _init_tracker() can snap to the correct person and _composite_blur()
+        can use the pixel-accurate instance mask.
+
+        Args:
+            detections: list of dicts from YOLOv8SegModule.detect()
+                        Each dict: {class, confidence, bbox, track_id, mask}
+        """
+        with self._lock:
+            self._seg_detections = list(detections)
 
     def process_frame(self, frame: np.ndarray) -> np.ndarray:
         """
@@ -287,20 +384,50 @@ class TrackingAutofocusEngine:
     # ──────────────────────────────────────────────── internal ───────────────
 
     def _init_tracker(self, frame: np.ndarray, cx: int, cy: int):
-        """Create / reinitialize CSRT tracker centered at (cx, cy)."""
+        """
+        Create / reinitialize CSRT tracker.
+
+        Phase 2 upgrade: if YOLO-seg detections are available for this frame,
+        snap the initial bbox to the nearest detected person (gives the tracker
+        a clean full-body region instead of a tiny click square) and store the
+        track_id so the mask pipeline can lock onto it every frame.
+        """
         h, w = frame.shape[:2]
-        half  = self.bbox_size // 2
-        x1    = max(0, cx - half)
-        y1    = max(0, cy - half)
-        bw    = min(self.bbox_size, w - x1)
-        bh    = min(self.bbox_size, h - y1)
 
-        # Ensure minimum viable bbox
+        # ── Try to snap to a YOLO-seg detection ────────────────────────
+        snap = self._snap_to_detection(cx, cy)
+
+        if snap is not None:
+            # Use the full detected person bbox (much better than click square)
+            bx1, by1, bx2, by2 = snap['bbox']
+            bw    = bx2 - bx1
+            bh    = by2 - by1
+            # Apply body padding (20 % W / 30 % H)
+            pad_x = int(bw * 0.20)
+            pad_y = int(bh * 0.30)
+            bx1   = max(0, bx1 - pad_x)
+            by1   = max(0, by1 - pad_y)
+            bx2   = min(w, bx2 + pad_x)
+            by2   = min(h, by2 + pad_y)
+            bw, bh = bx2 - bx1, by2 - by1
+            bbox   = (bx1, by1, bw, bh)
+            tid    = snap.get('track_id')
+            cx, cy = (bx1 + bx2) // 2, (by1 + by2) // 2
+            print(f"[TRACKER] Snapped to detection  track_id={tid}  bbox={bbox}")
+        else:
+            # Fallback: use fixed-size square centred on click
+            half = self.bbox_size // 2
+            x1   = max(0, cx - half)
+            y1   = max(0, cy - half)
+            bw   = min(self.bbox_size, w - x1)
+            bh   = min(self.bbox_size, h - y1)
+            bbox = (x1, y1, bw, bh)
+            tid  = None
+            print(f"[TRACKER] No detection found, using click square  bbox={bbox}")
+
         if bw < 10 or bh < 10:
-            print(f"[TRACKER] Click too close to edge, skipping init")
+            print("[TRACKER] bbox too small, skipping init")
             return
-
-        bbox = (x1, y1, bw, bh)
 
         tracker = _create_tracker()
         try:
@@ -314,14 +441,144 @@ class TrackingAutofocusEngine:
             return
 
         with self._lock:
-            self._tracker    = tracker
-            self._bbox       = bbox
-            self._center     = (cx, cy)
-            self._state      = self.STATE_TRACKING
-            self._loss_time  = None
-            self._mask_cache = None   # force mask rebuild at new position
+            self._tracker            = tracker
+            self._bbox               = bbox
+            self._center             = (cx, cy)
+            self._state              = self.STATE_TRACKING
+            self._loss_time          = None
+            self._mask_cache         = None
+            self._selected_track_id  = tid    # lock onto this person
+            self._last_instance_mask = None   # clear stale mask
+            self._seg_fail_count     = 0
+            # Task 7 — rack focus: start animation to new depth reference
+            self._prev_depth_ref    = self._depth_ref
+            self._target_depth_ref  = self._depth_ref  # refined in first frame
+            self._rack_focus_start  = time.time()
+            self._rack_focus_active = True
+            self._last_blur_map     = None              # clear temporal state
 
-        print(f"[TRACKER] Initialized  center=({cx},{cy})  bbox={bbox}")
+        print(f"[TRACKER] Initialized  center=({cx},{cy})  bbox={bbox}  track_id={tid}")
+
+    def _snap_to_detection(self, click_x: int, click_y: int) -> Optional[Dict]:
+        """
+        Phase 2 — Find YOLO-seg detection nearest/containing click point.
+
+        Returns the detection dict or None if no detections available.
+        """
+        with self._lock:
+            dets = list(self._seg_detections)
+
+        if not dets:
+            return None
+
+        # Prefer detections that CONTAIN the click point
+        containing = [
+            d for d in dets
+            if (d['bbox'][0] <= click_x <= d['bbox'][2] and
+                d['bbox'][1] <= click_y <= d['bbox'][3])
+        ]
+        candidates = containing if containing else dets
+
+        # Among candidates, pick closest centre
+        best, best_dist = None, float('inf')
+        for d in candidates:
+            x1, y1, x2, y2 = d['bbox']
+            dc = ((click_x - (x1+x2)//2)**2 + (click_y - (y1+y2)//2)**2) ** 0.5
+            if dc < best_dist:
+                best_dist, best = dc, d
+
+        return best
+
+    def _get_instance_mask(
+        self,
+        frame_h: int,
+        frame_w: int,
+    ) -> Optional[np.ndarray]:
+        """
+        Phase 2 — Look up the segmentation mask for the selected track_id.
+
+        Returns floating-point mask (H×W) 0.0-1.0 or None.
+        """
+        with self._lock:
+            tid  = self._selected_track_id
+            dets = self._seg_detections
+
+        if tid is None or not dets:
+            return None
+
+        # Find the detection with matching track id
+        match = next((d for d in dets if d.get('track_id') == tid), None)
+
+        if match is None:
+            # track momentarily absent — try to keep last mask for one extra frame
+            if self._last_instance_mask is not None and self._seg_fail_count < self.seg_fail_max:
+                self._seg_fail_count += 1
+                return self._last_instance_mask
+            return None   # give up; caller will fall back to geometric
+
+        self._seg_fail_count = 0  # reset failure counter on successful match
+
+        raw_mask = match.get('mask')
+        if raw_mask is None:
+            return None
+
+        # Convert uint8 0/255 → float32 0.0/1.0
+        if raw_mask.dtype == np.uint8:
+            mask = raw_mask.astype(np.float32) / 255.0
+        else:
+            mask = raw_mask.astype(np.float32)
+
+        # Resize to frame dimensions if needed
+        if mask.shape[:2] != (frame_h, frame_w):
+            mask = cv2.resize(mask, (frame_w, frame_h), interpolation=cv2.INTER_LINEAR)
+
+        # ── Phase 4: Edge recovery & anti-halo refinement ─────────────
+        # 1. Morphological dilation — recover arms, hair, finger edges
+        if self.seg_edge_dilation > 0:
+            d_k  = self.seg_edge_dilation * 2 + 1
+            kern = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (d_k, d_k))
+            m8   = (mask * 255).astype(np.uint8)
+            mask = cv2.dilate(m8, kern, iterations=1).astype(np.float32) / 255.0
+
+        # 2. Morphological closing — fill small internal holes
+        close_k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (7, 7))
+        m8      = (mask * 255).astype(np.uint8)
+        mask    = cv2.morphologyEx(m8, cv2.MORPH_CLOSE, close_k).astype(np.float32) / 255.0
+
+        # 3. Remove small isolated noise blobs
+        m8_bin = (mask > 0.5).astype(np.uint8) * 255
+        num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(m8_bin, connectivity=8)
+        if num_labels > 1:
+            largest_label = 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])
+            clean = np.zeros_like(m8_bin)
+            clean[labels == largest_label] = 255
+            # Also keep any other blobs > 5% of main blob area
+            main_area = stats[largest_label, cv2.CC_STAT_AREA]
+            for lbl in range(1, num_labels):
+                if lbl != largest_label and stats[lbl, cv2.CC_STAT_AREA] > main_area * 0.05:
+                    clean[labels == lbl] = 255
+            mask = clean.astype(np.float32) / 255.0
+
+        # 4. Edge feathering — prevent hard cutoff (anti-halo, max 2px)
+        if self.seg_edge_feather > 0:
+            f_k  = max(3, self.seg_edge_feather * 2 + 1)
+            mask = cv2.GaussianBlur(mask, (f_k, f_k), 0)
+
+        # ── Phase 5: Coverage guarantee ───────────────────────────────
+        # Validate mask area relative to reported bbox
+        x1, y1, x2, y2 = match['bbox']
+        bbox_area = max(1, (x2 - x1) * (y2 - y1))
+        mask_area = float(np.sum(mask > 0.5))
+        coverage  = mask_area / bbox_area
+
+        if coverage < 0.25:
+            # Under-segmented — temporarily disable blur inside bbox,
+            # return None to trigger the geometric fallback expansion
+            print(f"[TRACKER] Low mask coverage ({coverage:.1%}) — using fallback")
+            return None
+
+        self._last_instance_mask = mask
+        return mask
 
     def _update_tracker(self, frame: np.ndarray):
         """Run tracker.update() and advance state machine."""
@@ -362,6 +619,212 @@ class TrackingAutofocusEngine:
                         print("[TRACKER] Grace period expired — IDLE")
                         self._reset_locked()
 
+    def _build_segmentation_mask(
+        self,
+        frame: np.ndarray,
+        bbox: Tuple[int, int, int, int],
+    ) -> Optional[np.ndarray]:
+        """
+        Build pixel-accurate person segmentation mask.
+        
+        FULL SILHOUETTE SUBJECT LOCK MODE:
+        - Uses AI segmentation (MediaPipe/DeepLabV3)
+        - Returns binary mask: 1.0 = person, 0.0 = background
+        - Applies morphological dilation to recover edges (arms, fingers, hair)
+        - Feathers edges to prevent hard cutoff
+        
+        Args:
+            frame: BGR image (H×W×3)
+            bbox: Tracker bbox (x, y, w, h) - used as ROI hint
+        
+        Returns:
+            Binary mask (H×W float32) or None if segmentation fails
+        """
+        if self._segmenter is None:
+            return None
+        
+        h, w = frame.shape[:2]
+        x, y, bw, bh = bbox
+        
+        # Convert bbox from (x, y, w, h) to (x1, y1, x2, y2)
+        x1, y1 = x, y
+        x2, y2 = x + bw, y + bh
+        
+        # Expand bbox by fallback percentage to ensure full body captured
+        expand_pct = self.seg_fallback_expand_pct
+        expand_w = int(bw * expand_pct)
+        expand_h = int(bh * expand_pct)
+        
+        x1_exp = max(0, x1 - expand_w)
+        y1_exp = max(0, y1 - expand_h)
+        x2_exp = min(w, x2 + expand_w)
+        y2_exp = min(h, y2 + expand_h)
+        
+        roi_bbox = (x1_exp, y1_exp, x2_exp, y2_exp)
+        
+        try:
+            # Run segmentation
+            mask = self._segmenter.segment_person(
+                frame,
+                bbox=roi_bbox,
+                threshold=self.segmentation_threshold,
+            )
+            
+            # Ensure mask shape matches frame
+            if mask.shape != (h, w):
+                mask = cv2.resize(mask, (w, h), interpolation=cv2.INTER_LINEAR)
+            
+            # ── EDGE RECOVERY: Morphological dilation ──────────────────
+            # Expands mask by 1-3px to recover arms, fingers, hair edges
+            if self.seg_edge_dilation > 0:
+                kernel_size = self.seg_edge_dilation * 2 + 1
+                kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+                mask_uint8 = (mask * 255).astype(np.uint8)
+                mask_dilated = cv2.dilate(mask_uint8, kernel, iterations=1)
+                mask = mask_dilated.astype(np.float32) / 255.0
+            
+            # ── ANTI-HALO REFINEMENT: Morphological closing + feather ──
+            # Close small holes inside silhouette
+            mask = self._segmenter.refine_mask(
+                mask,
+                kernel_size=5,
+                feather=self.seg_edge_feather,
+            )
+            
+            # ── FULL BODY COVERAGE GUARANTEE ──────────────────────────
+            # Check if segmented area is reasonable relative to bbox
+            mask_area = np.sum(mask > 0.5)
+            bbox_area = bw * bh
+            
+            if mask_area < bbox_area * 0.30:
+                # Segmentation likely failed (too small)
+                print(f"[TRACKER] Segmentation coverage low ({mask_area}/{bbox_area:.0f}), using fallback")
+                return None
+            
+            # Store for potential frame skip interpolation
+            self._last_seg_mask = mask
+            
+            return mask
+            
+        except Exception as e:
+            print(f"[TRACKER] Segmentation error: {e}")
+            return None
+
+    # ─────────────────────────────────────────────────────────────────
+    #  Task 1-7: Depth-aware cinematic blur pipeline
+    # ─────────────────────────────────────────────────────────────────
+
+    def _compute_depth_blur_map(
+        self,
+        frame:        np.ndarray,
+        subject_mask: Optional[np.ndarray],
+        h: int, w: int,
+    ) -> np.ndarray:
+        """
+        Returns H×W float32 blur-weight map, range [0.0 … 1.0].
+          0.0 = razor sharp (on the focal plane)
+          1.0 = maximum blur (far from focal plane)
+
+        Pipeline (Tasks 1-7):
+          1. Depth inference     — MiDaS-small or proxy
+          2. subject_depth_mean  — average depth inside subject mask
+          3. depth_diff          — |depth_map − reference_plane|
+          4. blur_strength       — smoothstep(depth_diff × k) [Task 3]
+          5. Spatial reduction   — nearby persons get less blur [Task 4]
+          6. Temporal smoothing  — 0.8×prev + 0.2×new [Task 6]
+             (rack focus handled by animating the reference plane [Task 7])
+        """
+        with self._lock:
+            depth_est        = self._depth_estimator
+            dets             = list(self._seg_detections)
+            sel_tid          = self._selected_track_id
+            sel_center       = self._center
+            prev_ref         = self._depth_ref
+            target_ref       = self._target_depth_ref
+            rack_start       = self._rack_focus_start
+            rack_active      = self._rack_focus_active
+            rack_dur         = self.rack_focus_duration
+            k_blur           = self.depth_blur_k
+            sp_thresh        = self.spatial_threshold_px
+            sp_reduce        = self.spatial_reduce_frac
+            tmp_alpha        = self.temporal_alpha
+            prev_blur_map    = self._last_blur_map
+
+        # ── Task 1: Depth inference ────────────────────────────────────
+        depth_map = depth_est.infer(frame)                  # H×W float32 [0,1]
+
+        # ── Task 1: Subject depth reference ───────────────────────────
+        raw_depth_mean: float = 0.5
+        if subject_mask is not None:
+            pixels = depth_map[subject_mask > 0.5]
+            if len(pixels) >= 10:
+                raw_depth_mean = float(np.mean(pixels))
+
+        # ── Task 7: Rack focus — animate reference plane ─────────────
+        # When a new subject is selected, _rack_focus_active is True and
+        # we smoothly interpolate from prev_ref to raw_depth_mean.
+        if rack_active:
+            # Update target if subject depth is now known
+            if raw_depth_mean != target_ref:
+                with self._lock:
+                    self._target_depth_ref = raw_depth_mean
+                target_ref = raw_depth_mean
+
+            elapsed   = time.time() - rack_start
+            t         = min(1.0, elapsed / max(rack_dur, 0.01))
+            # Ease-in-out (smoothstep)
+            t_ease    = t * t * (3.0 - 2.0 * t)
+            new_ref   = prev_ref + t_ease * (target_ref - prev_ref)
+
+            if t >= 1.0:
+                with self._lock:
+                    self._rack_focus_active = False
+            with self._lock:
+                self._depth_ref = new_ref
+            ref_plane = new_ref
+        else:
+            ref_plane = self._depth_ref
+
+        # ── Task 2: Per-pixel depth difference ────────────────────────
+        depth_diff = np.abs(depth_map - ref_plane).astype(np.float32)
+
+        # ── Task 3: Smooth depth → blur strength ──────────────────────
+        # Linear scale then smoothstep for natural S-curve falloff.
+        # k_blur = 3.5 → depth_diff of 0.29 already reaches 100 % blur.
+        raw_w = np.clip(depth_diff * k_blur, 0.0, 1.0)
+        # Smoothstep S-curve: w = 3w² − 2w³
+        blur_weight = raw_w * raw_w * (3.0 - 2.0 * raw_w)
+
+        # ── Task 4: Spatial proximity adjustment ─────────────────────
+        # Persons near the selected subject (screen-space) get ≤45% less blur.
+        if sel_center is not None and dets:
+            scx, scy = sel_center
+            for det in dets:
+                tid = det.get('track_id')
+                if tid == sel_tid:
+                    continue          # skip the selected subject itself
+                bx1, by1, bx2, by2 = det['bbox']
+                dcx = (bx1 + bx2) // 2
+                dcy = (by1 + by2) // 2
+                dist = ((dcx - scx) ** 2 + (dcy - scy) ** 2) ** 0.5
+                if dist < sp_thresh and det.get('mask') is not None:
+                    other_mask = det['mask'].astype(np.float32) / 255.0
+                    if other_mask.shape[:2] != (h, w):
+                        other_mask = cv2.resize(
+                            other_mask, (w, h), interpolation=cv2.INTER_LINEAR)
+                    # Linear: 0 distance → full sp_reduce; at threshold → 0
+                    reduction  = (1.0 - dist / sp_thresh) * sp_reduce
+                    blur_weight = blur_weight * (1.0 - other_mask * reduction)
+
+        # ── Task 6: Temporal smoothing ─────────────────────────────────
+        if prev_blur_map is not None and prev_blur_map.shape == blur_weight.shape:
+            blur_weight = tmp_alpha * prev_blur_map + (1.0 - tmp_alpha) * blur_weight
+
+        with self._lock:
+            self._last_blur_map = blur_weight
+
+        return blur_weight.astype(np.float32)
+
     def _composite_blur(
         self,
         frame:  np.ndarray,
@@ -369,47 +832,118 @@ class TrackingAutofocusEngine:
         bbox:   Optional[Tuple[int, int, int, int]] = None,
     ) -> np.ndarray:
         """
-        Apply selective blur.
-        Sharp zone = expanded body region derived from tracker bbox.
-        Falls back to circular mask when no bbox is available.
+        DSLR-style cinematic blur — full pipeline:
+
+          Subject pixels         → RAZOR SHARP  (mask = 1, blur_weight forced to 0)
+          Nearby persons         → SOFT blur     (Task 4 spatial reduction)
+          Far background         → HEAVY blur    (high depth_diff)
+          Depth gradient         → SMOOTH        (Tasks 3+7 smoothstep + rack focus)
+          Frame-to-frame         → NO FLICKER    (Task 6 temporal smoothing)
+          Rendering              → FAST           (Task 5 pre-computed 3-layer blend)
+
+        Mask priority:
+          1. YOLOv8-seg instance mask
+          2. MediaPipe / GrabCut (if injected)
+          3. Expanded geometric bbox
+          4. Circular focal mask
         """
-        h, w = frame.shape[:2]
+        h, w   = frame.shape[:2]
+        frame_f = frame.astype(np.float32)
 
-        # Full-frame heavy Gaussian blur (background)
-        k = self.blur_ksize | 1
-        blurred = cv2.GaussianBlur(frame, (k, k), 0)
-        blurred = cv2.GaussianBlur(blurred, (31, 31), 0)
+        # ── Task 5: Pre-compute blur layers (light / medium / heavy) ──
+        k_heavy  = self.blur_ksize | 1
+        k_medium = max(3, (self.blur_ksize // 3) | 1)
+        k_light  = max(3, (self.blur_ksize // 7) | 1)
 
-        if bbox is not None:
-            # ── Body-region mask (rectangular, feathered) ──────────────
-            ex1, ey1, ex2, ey2 = _expand_bbox_to_body(
-                bbox, h, w,
-                expand_w=self.body_expand_w,
-                expand_h=self.body_expand_h,
-                max_area_frac=self.body_max_frac,
-            )
-            cache_key = (ex1, ey1, ex2, ey2, self.feather, h, w)
-            with self._lock:
-                if self._mask_cache is None or self._mask_key != cache_key:
-                    self._mask_cache = _build_body_mask(
-                        h, w, ex1, ey1, ex2, ey2, self.feather)
-                    self._mask_key = cache_key
-                mask = self._mask_cache
+        blur_light  = cv2.GaussianBlur(frame, (k_light,  k_light),  0).astype(np.float32)
+        blur_medium = cv2.GaussianBlur(frame, (k_medium, k_medium), 0).astype(np.float32)
+        blur_heavy  = cv2.GaussianBlur(frame, (k_heavy,  k_heavy),  0)
+        blur_heavy  = cv2.GaussianBlur(blur_heavy, (31, 31),        0).astype(np.float32)
+
+        # ── Resolve subject mask (silhouette lock) ─────────────────────
+        mask = None
+
+        if self.use_segmentation and bbox is not None:
+            run_now = (self.seg_frame_skip == 0 or
+                       self._seg_frame_counter % (self.seg_frame_skip + 1) == 0)
+            self._seg_frame_counter += 1
+            if run_now:
+                mask = self._get_instance_mask(h, w)
+                if mask is None and self._segmenter is not None:
+                    mask = self._build_segmentation_mask(frame, bbox)
+            else:
+                mask = self._last_instance_mask or self._last_seg_mask
+
+        if mask is None:
+            if bbox is not None:
+                ex1, ey1, ex2, ey2 = _expand_bbox_to_body(
+                    bbox, h, w,
+                    expand_w=self.body_expand_w,
+                    expand_h=self.body_expand_h,
+                    max_area_frac=self.body_max_frac,
+                )
+                if self.use_segmentation:
+                    fac  = 1.0 + self.seg_fallback_expand_pct
+                    ecx  = (ex1 + ex2) // 2
+                    ecy  = (ey1 + ey2) // 2
+                    ew   = int((ex2 - ex1) * fac)
+                    eh_  = int((ey2 - ey1) * fac)
+                    ex1  = max(0, ecx - ew // 2);   ey1 = max(0, ecy - eh_ // 2)
+                    ex2  = min(w, ecx + ew // 2);   ey2 = min(h, ecy + eh_ // 2)
+                cache_key = (ex1, ey1, ex2, ey2, self.feather, h, w)
+                with self._lock:
+                    if self._mask_cache is None or self._mask_key != cache_key:
+                        self._mask_cache = _build_body_mask(
+                            h, w, ex1, ey1, ex2, ey2, self.feather)
+                        self._mask_key = cache_key
+                    mask = self._mask_cache
+            else:
+                cx_ = int(np.clip(center[0], 0, w - 1))
+                cy_ = int(np.clip(center[1], 0, h - 1))
+                ck  = (cx_, cy_, self.focus_radius, self.feather, h, w)
+                with self._lock:
+                    if self._mask_cache is None or self._mask_key != ck:
+                        self._mask_cache = _build_soft_mask(
+                            h, w, cx_, cy_, self.focus_radius, self.feather)
+                        self._mask_key = ck
+                    mask = self._mask_cache
+
+        # ── Tasks 1-6: Per-pixel blur weight from depth ─────────────
+        with self._lock:
+            has_depth = self._depth_estimator is not None
+        if has_depth:
+            blur_w = self._compute_depth_blur_map(frame, mask, h, w)
         else:
-            # ── Fallback: circular mask centred on click point ────────
-            cx   = int(np.clip(center[0], 0, w - 1))
-            cy   = int(np.clip(center[1], 0, h - 1))
-            cache_key = (cx, cy, self.focus_radius, self.feather, h, w)
-            with self._lock:
-                if self._mask_cache is None or self._mask_key != cache_key:
-                    self._mask_cache = _build_soft_mask(
-                        h, w, cx, cy, self.focus_radius, self.feather)
-                    self._mask_key = cache_key
-                mask = self._mask_cache
+            # Fallback: binary (subject=sharp, background=full blur)
+            blur_w = (1.0 - mask).astype(np.float32)
 
-        mask3     = mask[:, :, np.newaxis]
-        composite = (frame.astype(np.float32) * mask3 +
-                     blurred.astype(np.float32) * (1.0 - mask3))
+        # Subject silhouette ALWAYS stays sharp (mask overrides depth)
+        blur_w = blur_w * (1.0 - mask)          # zero blur where mask==1
+
+        # ── Task 5: 3-layer piecewise blend ───────────────────────────
+        # blur_w in [0.0, 0.5)  → lerp original → light
+        # blur_w in [0.5, 0.8)  → lerp light    → medium
+        # blur_w in [0.8, 1.0]  → lerp medium   → heavy
+        t  = blur_w[:, :, np.newaxis]            # (H,W,1)
+
+        # Segment 1: original → light  (t: 0 → 0.5)
+        a1    = np.clip(t / 0.5, 0.0, 1.0)
+        out1  = frame_f * (1.0 - a1) + blur_light * a1
+
+        # Segment 2: light → medium   (t: 0.5 → 0.8)
+        a2    = np.clip((t - 0.5) / 0.3, 0.0, 1.0)
+        out2  = blur_light * (1.0 - a2) + blur_medium * a2
+
+        # Segment 3: medium → heavy   (t: 0.8 → 1.0)
+        a3    = np.clip((t - 0.8) / 0.2, 0.0, 1.0)
+        out3  = blur_medium * (1.0 - a3) + blur_heavy * a3
+
+        # Select segment per pixel
+        c1 = (blur_w < 0.5).astype(np.float32)[:, :, np.newaxis]
+        c2 = ((blur_w >= 0.5) & (blur_w < 0.8)).astype(np.float32)[:, :, np.newaxis]
+        c3 = (blur_w >= 0.8).astype(np.float32)[:, :, np.newaxis]
+
+        composite = out1 * c1 + out2 * c2 + out3 * c3
         return np.clip(composite, 0, 255).astype(np.uint8)
 
     def _draw_overlay(

@@ -3,65 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SentraVision AI Platform</title>
-    <!-- Fonts -->
+    <title>S E N T R A // V I S I O N</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
-            /* Color System */
-            --bg-primary: #0F1115;
-            --bg-secondary: #161920;
-            --card-glass: rgba(22, 25, 32, 0.7);
-            --card-border: rgba(255, 255, 255, 0.08);
+            /* CYBERPALETTE */
+            --void-bg: #030407;
+            --glass-panel: rgba(10, 15, 25, 0.65);
+            --glass-border: rgba(0, 243, 255, 0.15);
+            --neon-cyan: #00f3ff;
+            --neon-teal: #00ffe7;
+            --neon-alert: #ff2a6d;
+            --neon-warn: #fbff00;
+            --neon-success: #05ff00;
             
-            --accent-gradient: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%);
-            --accent-glow: rgba(139, 92, 246, 0.3);
-            
-            --text-primary: #FFFFFF;
-            --text-secondary: #9CA3AF;
-            --text-tertiary: #6B7280;
-            
-            --success: #10B981;
-            --warning: #F59E0B;
-            --error: #EF4444;
-            
-            /* Spacing */
-            --radius-lg: 16px;
-            --radius-md: 12px;
-            --radius-sm: 8px;
-            
-            /* Transitions */
-            --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+            --hud-font: 'JetBrains Mono', monospace;
+            --ui-font: 'Inter', sans-serif;
+            --header-font: 'Orbitron', sans-serif;
+
+            --ease-out-quart: cubic-bezier(0.165, 0.84, 0.44, 1);
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
+        * { box-sizing: border-box; user-select: none; }
+        
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
-            overflow-y: auto;
+            margin: 0;
+            height: 100vh;
+            background-color: var(--void-bg);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(0, 243, 255, 0.05) 0%, transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(255, 42, 109, 0.03) 0%, transparent 25%);
+            color: #cee;
+            font-family: var(--ui-font);
+            overflow: hidden;
             display: flex;
-            flex-direction: column;
         }
 
-        /* ── Header ─────────────────────────────────────────────────── */
-        .app-header {
-            height: 60px;
-            padding: 0 24px;
+        /* ─── GRID LAYOUT ────────────────────────────────────────────── */
+        .main-interface {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            grid-template-rows: 60px 1fr 40px;
+            width: 100%;
+            height: 100%;
+            gap: 0px;
+        }
+
+        /* ─── HEADER ─────────────────────────────────────────────────── */
+        .hud-header {
+            grid-column: 1 / -1;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--card-border);
+            padding: 0 24px;
+            border-bottom: 1px solid var(--glass-border);
+            background: rgba(3, 4, 7, 0.8);
+            backdrop-filter: blur(10px);
             z-index: 10;
         }
 
-        .brand {
+        .brand-lockup {
             display: flex;
             align-items: center;
             gap: 12px;
@@ -70,562 +73,530 @@
         .brand-logo {
             width: 32px;
             height: 32px;
-            background: var(--accent-gradient);
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 18px;
-            box-shadow: 0 0 20px var(--accent-glow);
+            border: 2px solid var(--neon-cyan);
+            border-radius: 4px;
+            display: grid;
+            place-items: center;
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
+            position: relative;
         }
-
-        .brand-text h1 {
-            font-size: 18px;
-            font-weight: 600;
-            letter-spacing: -0.02em;
-        }
-
-        .brand-text span {
-            font-size: 12px;
-            color: var(--text-tertiary);
-            font-weight: 400;
-            margin-left: 8px;
-            padding-left: 8px;
-            border-left: 1px solid var(--card-border);
-        }
-
-        .system-status {
-            display: flex;
-            gap: 20px;
-            font-size: 12px;
-            color: var(--text-secondary);
-        }
-
-        .status-dot {
+        
+        .brand-logo::after {
+            content: '';
             width: 8px;
             height: 8px;
+            background: var(--neon-cyan);
             border-radius: 50%;
-            display: inline-block;
-            margin-right: 6px;
         }
-        .status-dot.active { background: var(--success); box-shadow: 0 0 8px rgba(16, 185, 129, 0.4); }
-        .status-dot.inactive { background: var(--error); }
-        .status-dot.warning { background: var(--warning); }
 
-        /* ── Main Layout ────────────────────────────────────────────── */
-        .main-layout {
-            flex: 1;
-            display: grid;
-            grid-template-columns: 1fr 380px; /* 70% / 30% roughly on desktop */
+        .brand-text {
+            font-family: var(--header-font);
+            font-weight: 700;
+            font-size: 20px;
+            letter-spacing: 2px;
+            background: linear-gradient(90deg, #fff, var(--neon-cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(0, 243, 255, 0.4);
+        }
+
+        .sys-status {
+            display: flex;
             gap: 24px;
-            padding: 24px;
-            min-height: calc(100vh - 60px);
-            overflow: visible;
+            font-family: var(--hud-font);
+            font-size: 11px;
+            color: rgba(204, 238, 238, 0.6);
         }
 
-        /* ── Left Zone: Visual Engine ───────────────────────────────── */
-        .visual-engine {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
+        .status-item { display: flex; align-items: center; gap: 8px; }
+        .status-dot {
+            width: 6px; 
+            height: 6px; 
+            border-radius: 50%; 
+            background: #333;
+            box-shadow: 0 0 0 2px rgba(255,255,255,0.1);
+        }
+        .status-dot.active { background: var(--neon-success); box-shadow: 0 0 8px var(--neon-success); }
+        .status-dot.warning { background: var(--neon-warn); box-shadow: 0 0 8px var(--neon-warn); }
+
+        /* ─── VIEWPORT (LEFT) ────────────────────────────────────────── */
+        .viewport-container {
+            grid-column: 1;
+            grid-row: 2;
             position: relative;
-            min-height: 600px;
-        }
-
-        .preview-container {
-            flex: 1; /* Fills available vertical space */
-            min-height: 500px;
-            max-height: 75vh;
+            margin: 24px;
+            border-radius: 8px;
+            border: 1px solid var(--glass-border);
             background: #000;
-            border-radius: var(--radius-lg);
-            position: relative;
+            box-shadow: 0 0 40px rgba(0,0,0,0.5);
             overflow: hidden;
-            box-shadow: 0 20px 50px -10px rgba(0,0,0,0.5);
-            border: 1px solid var(--card-border);
-            display: flex;
+            display: flex; /* Center placeholder */
             align-items: center;
             justify-content: center;
         }
 
-        .video-full {
+        /* HUD Corners */
+        .corner-bracket {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border: 2px solid var(--neon-cyan);
+            opacity: 0.5;
+            transition: all 0.3s;
+            pointer-events: none;
+        }
+        .cb-tl { top: 16px; left: 16px; border-right: none; border-bottom: none; }
+        .cb-tr { top: 16px; right: 16px; border-left: none; border-bottom: none; }
+        .cb-bl { bottom: 16px; left: 16px; border-right: none; border-top: none; }
+        .cb-br { bottom: 16px; right: 16px; border-left: none; border-top: none; }
+
+        /* Video Elements */
+        #videoStream, #vCanvas {
             width: 100%;
             height: 100%;
             object-fit: contain;
-        }
-
-        /* Overlays inside Preview */
-        .overlay-badge {
-            position: absolute;
-            background: rgba(15, 17, 21, 0.85);
-            backdrop-filter: blur(8px);
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            border: 1px solid rgba(255,255,255,0.1);
-            pointer-events: none;
-            display: flex;
-            align-items: center;
-            gap: 6px;
+            display: block;
         }
         
-        .badge-fps { top: 20px; right: 20px; }
-        .badge-mode { top: 20px; left: 20px; color: var(--text-secondary); }
-        .badge-tracking { 
-            top: 20px; left: 50%; 
-            transform: translateX(-50%);
-            display: none; /* toggled by JS */
-            color: var(--success);
-        }
+        #vCanvas { display: none; } /* Hidden initially */
 
-        /* Focus UI */
-        .focus-ring {
-            display: none;
+        /* Upload Zone Overlay */
+        #uploadZone {
             position: absolute;
-            border: 2px solid rgba(139, 92, 246, 0.8);
-            border-radius: 50%;
-            width: 60px; height: 60px;
-            pointer-events: none;
-            box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
-            transform: translate(-50%, -50%);
-            animation: ping 1s cubic-bezier(0, 0, 0.2, 1);
-        }
-        
-        @keyframes ping {
-            0% { transform: translate(-50%, -50%) scale(0.8); opacity: 1; }
-            100% { transform: translate(-50%, -50%) scale(1.4); opacity: 0; }
-        }
-
-        /* Bottom Control Strip (Timeline / Tools) */
-        .control-strip {
-            height: 80px;
-            background: var(--card-glass);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--card-border);
-            border-radius: var(--radius-lg);
-            padding: 0 24px;
-            display: flex;
+            inset: 0;
+            display: none; /* Flex when active */
+            flex-direction: column;
             align-items: center;
-            justify-content: space-between;
-            gap: 24px;
-        }
-
-        .control-group {
-            display: flex;
-            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+            border: 2px dashed rgba(255,255,255,0.1);
+            z-index: 20;
+            color: rgba(255,255,255,0.5);
+            font-family: var(--header-font);
+            letter-spacing: 1px;
             gap: 16px;
         }
+        #uploadZone.active-mode { display: flex; }
+        #uploadZone.drag-over { background: rgba(0, 243, 255, 0.1); border-color: var(--neon-cyan); color: #fff; }
 
-        .slider-group {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            min-width: 140px;
-        }
-        
-        .slider-label {
-            font-size: 11px;
-            color: var(--text-secondary);
-            font-weight: 500;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        input[type="range"] {
-            -webkit-appearance: none;
-            width: 100%;
-            height: 4px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 2px;
-            outline: none;
-        }
-        
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 12px; height: 12px;
-            background: #fff;
-            border-radius: 50%;
-            cursor: pointer;
-            transition: transform 0.1s;
-        }
-        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
-
-        .btn-action {
-            height: 40px;
-            padding: 0 20px;
-            border-radius: 8px;
-            border: none;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
+        /* Overlays (Badges, Focus Ring) */
+        .live-badge {
+            position: absolute;
+            top: 24px;
+            left: 32px;
+            background: rgba(255, 42, 109, 0.2);
+            border: 1px solid var(--neon-alert);
+            color: var(--neon-alert);
+            padding: 4px 8px;
+            font-family: var(--hud-font);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
+            opacity: 0; /* Hidden by default */
+            transition: opacity 0.3s;
         }
-        
-        .btn-primary {
-            background: white;
-            color: black;
-        }
-        .btn-primary:hover { background: #e5e7eb; transform: translateY(-1px); }
-        
-        .btn-glass {
-            background: rgba(255,255,255,0.05);
-            color: white;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .btn-glass:hover { background: rgba(255,255,255,0.1); }
-        .btn-glass:disabled { opacity: 0.4; cursor: not-allowed; }
+        .live-badge::before { content: ''; width: 6px; height: 6px; background: var(--neon-alert); border-radius: 50%; box-shadow: 0 0 5px var(--neon-alert); }
+        .show-rec { opacity: 1; }
 
-        /* ── Right Zone: AI Control Panel ───────────────────────────── */
+        .focus-ring {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border: 2px solid var(--neon-warn);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            display: none;
+            pointer-events: none;
+            box-shadow: 0 0 10px var(--neon-warn), inset 0 0 10px var(--neon-warn);
+        }
+        
+        /* ─── CONTROL PANEL (RIGHT) ──────────────────────────────────── */
         .control-panel {
+            grid-column: 2;
+            grid-row: 2 / -1;
+            background: rgba(5, 8, 12, 0.85);
+            border-left: 1px solid var(--glass-border);
+            backdrop-filter: blur(20px);
+            padding: 24px;
             display: flex;
             flex-direction: column;
             gap: 24px;
             overflow-y: auto;
-            max-height: calc(100vh - 120px);
-            padding-right: 4px; /* Scrollbar padding */
         }
-        
-        .control-panel::-webkit-scrollbar { width: 4px; }
-        .control-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
 
         .panel-section-title {
+            font-family: var(--header-font);
             font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--text-tertiary);
+            letter-spacing: 1.5px;
+            opacity: 0.5;
             margin-bottom: 12px;
-        }
-
-        .mode-card {
-            background: var(--card-glass);
-            border: 1px solid var(--card-border);
-            border-radius: var(--radius-md);
-            padding: 16px;
-            cursor: pointer;
-            transition: all 0.2s var(--ease-out);
-            position: relative;
-            overflow: hidden;
-            margin-bottom: 12px;
-        }
-
-        .mode-card:hover {
-            transform: translateY(-2px);
-            background: rgba(255, 255, 255, 0.05);
-            border-color: rgba(255, 255, 255, 0.15);
-        }
-
-        .mode-card.active {
-            background: rgba(139, 92, 246, 0.1);
-            border-color: rgba(139, 92, 246, 0.5);
-        }
-
-        .mode-card.active::before {
-            content: '';
-            position: absolute;
-            left: 0; top: 0; bottom: 0;
-            width: 3px;
-            background: var(--accent-gradient);
-        }
-
-        .mode-title {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 4px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 6px;
             display: flex;
             justify-content: space-between;
         }
 
-        .mode-icon { opacity: 0.7; }
-
-        .mode-desc {
-            font-size: 12px;
-            color: var(--text-secondary);
-            line-height: 1.4;
-        }
-
-        /* Stats Grid */
-        .stats-grid {
+        /* Mode Cards */
+        .mode-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
             gap: 12px;
         }
 
-        .stat-box {
-            background: rgba(255,255,255,0.03);
-            border-radius: var(--radius-md);
-            padding: 12px;
-            text-align: center;
-        }
-        
-        .stat-val { font-size: 18px; font-weight: 700; color: white; }
-        .stat-lbl { font-size: 11px; color: var(--text-tertiary); margin-top: 4px; }
-
-        /* Hardware Monitor */
-        .hardware-monitor {
-            background: rgba(255,255,255,0.02);
-            border-radius: var(--radius-md);
+        .cyber-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 6px;
             padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s var(--ease-out-quart);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cyber-card:hover {
+            border-color: rgba(0, 243, 255, 0.3);
+            background: rgba(0, 243, 255, 0.05);
+        }
+
+        .cyber-card.active {
+            border-color: var(--neon-cyan);
+            background: rgba(0, 243, 255, 0.1);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
         }
         
-        .hw-row {
-            display: flex; justify-content: space-between; align-items: center;
-            font-size: 12px; color: var(--text-secondary);
-            margin-bottom: 8px;
+        .cyber-card.active::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 3px;
+            background: var(--neon-cyan);
+            box-shadow: 2px 0 10px var(--neon-cyan);
         }
-        
-        .hw-bar-bg {
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+
+        .card-title { font-family: var(--header-font); font-size: 13px; font-weight: 600; color: #fff; }
+        .card-icon { opacity: 0.7; }
+        .card-desc { font-size: 11px; color: rgba(204, 238, 238, 0.5); line-height: 1.4; }
+
+        /* Telemetry Bars */
+        .telemetry-row {
+            margin-bottom: 12px;
+            font-family: var(--hud-font);
+            font-size: 10px;
+        }
+        .t-label-row { display: flex; justify-content: space-between; margin-bottom: 4px; opacity: 0.7; }
+        .t-bar-bg {
             height: 4px;
             background: rgba(255,255,255,0.1);
             border-radius: 2px;
             overflow: hidden;
-            margin-bottom: 12px;
         }
-        
-        .hw-bar-fill {
+        .t-bar-fill {
             height: 100%;
-            background: var(--text-tertiary); /* Default idle color */
+            background: var(--neon-cyan);
             width: 0%;
-            transition: width 0.5s;
+            transition: width 0.3s;
+            box-shadow: 0 0 8px var(--neon-cyan);
         }
-        .hw-bar-fill.active { background: var(--success); }
+        .fill-warn { background: var(--neon-warn); box-shadow: 0 0 8px var(--neon-warn); }
+        .fill-danger { background: var(--neon-alert); box-shadow: 0 0 8px var(--neon-alert); }
 
-        /* ── Video Upload specific ───────────────────────────────────── */
-        .upload-zone {
-            display: flex; flex-direction: column;
-            height: 100%; width: 100%;
-            align-items: center; justify-content: center;
-            border: 1px dashed rgba(255,255,255,0.2);
-            border-radius: var(--radius-lg);
-            color: var(--text-secondary);
+        /* Console Log */
+        .sys-log {
+            flex: 1;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 4px;
+            padding: 12px;
+            font-family: var(--hud-font);
+            font-size: 10px;
+            color: rgba(255,255,255,0.5);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .log-entries {
+            flex: 1;
+            overflow-y: hidden;
+            display: flex;
+            flex-direction: column-reverse;
+        }
+        .log-line { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.02); }
+        .log-line span { color: var(--neon-cyan); }
+
+        /* ─── ACTIONS FOOTER (BOTTOM NAV) ────────────────────────────── */
+        .action-bar {
+            grid-column: 1;
+            grid-row: 3;
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            border-top: 1px solid var(--glass-border);
+            background: rgba(3, 4, 7, 0.9);
+            justify-content: space-between;
+        }
+
+        /* Buttons */
+        .btn-cyber {
+            background: transparent;
+            border: 1px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            padding: 6px 16px;
+            font-family: var(--header-font);
+            font-size: 11px;
+            letter-spacing: 1px;
             cursor: pointer;
             transition: all 0.2s;
+            text-transform: uppercase;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            height: 28px;
         }
-        .upload-zone:hover { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.4); }
-        .upload-zone.drag-over { border-color: #3B82F6; background: rgba(59, 130, 246, 0.1); }
+        .btn-cyber:hover:not(:disabled) {
+            background: rgba(0, 243, 255, 0.15);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+        }
+        .btn-cyber:disabled {
+            border-color: rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.2);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
         
-        /* Progress Bar (Export) */
-        .progress-container {
-            position: absolute; bottom: 0; left: 0; right: 0;
-            height: 4px; background: rgba(255,255,255,0.1);
+        .btn-danger {
+            border-color: var(--neon-alert);
+            color: var(--neon-alert);
         }
-        .progress-fill { height: 100%; background: var(--success); width: 0%; transition: width 0.2s; }
+        .btn-danger:hover:not(:disabled) {
+            background: rgba(255, 42, 109, 0.15);
+            box-shadow: 0 0 15px rgba(255, 42, 109, 0.2);
+        }
+
+        /* Playback Controls (Video Mode) */
+        .video-controls {
+            display: none; /* hidden by default */
+            align-items: center;
+            gap: 16px;
+            flex: 1;
+            margin-left: 24px;
+        }
+        
+        .scrubber-track {
+            flex: 1;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            position: relative;
+            cursor: pointer;
+        }
+        
+        /* Custom Input Range Reset */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+            width: 100%;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 12px; width: 12px;
+            border-radius: 50%;
+            background: var(--neon-cyan);
+            cursor: pointer;
+            margin-top: -4px;
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            height: 4px;
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* ─── SCROLLBAR ──────────────────────────────────────────────── */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 243, 255, 0.2); }
+        ::-webkit-scrollbar-thumb:hover { background: var(--neon-cyan); }
     </style>
 </head>
 <body>
 
-    <!-- Header -->
-    <header class="app-header">
-        <div class="brand">
-            <div class="brand-logo">S</div>
-            <div class="brand-text">
-                <h1>SentraVision</h1>
-                <span>AI VISION ENGINE</span>
-            </div>
-        </div>
-        <div class="system-status">
-            <div id="connStatus">
-                <span class="status-dot"></span> <span id="connText">Initializing...</span>
-            </div>
-            <div>
-                <span class="status-dot active"></span> GPU: Ready
-            </div>
-        </div>
-    </header>
-
-    <div class="main-layout">
+    <div class="main-interface">
         
-        <!-- LEFT: VISUAL ENGINE -->
-        <div class="visual-engine">
+        <!-- HEADER -->
+        <header class="hud-header">
+            <div class="brand-lockup">
+                <div class="brand-logo"></div>
+                <div class="brand-text">SENTRA<span style="font-weight:300; opacity:0.7">VISION</span></div>
+            </div>
             
-            <!-- Preview Area -->
-            <div class="preview-container" id="previewContainer">
-                
-                <!-- LIVE MODE ELEMENTS -->
-                <div id="liveContainer" style="width:100%; height:100%; position:relative;">
-                    <!-- Added pointer-events:none to img so clicks pass through to container -->
-                    <img id="videoStream" class="video-full" alt="Stream Disconnected" style="pointer-events:none;">
-                    
-                    <div id="focusRing" class="focus-ring"></div>
-                    <div id="focusDot" style="display:none;position:absolute;width:8px;height:8px;background:#60A5FA;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:0 0 10px #60A5FA;"></div>
-                    
-                    <div id="autofocusHint" style="display:none;position:absolute;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.6);padding:8px 16px;border-radius:20px;font-size:12px;backdrop-filter:blur(4px);">
-                        Click to focus object
-                    </div>
+            <div class="sys-status">
+                <div class="status-item">
+                    <div id="connDot" class="status-dot"></div>
+                    <span id="connText">DISCONNECTED</span>
                 </div>
+                <!-- <div class="status-item">
+                    <span>CPU:</span> <span id="hdrCpu" style="color:var(--neon-teal)">0%</span>
+                </div> -->
+            </div>
+        </header>
 
-                <!-- VIDEO UPLOAD ELEMENTS -->
-                <div id="videoUploadContainer" style="width:100%; height:100%; position:relative; display:none;">
-                    <div id="uploadZone" class="upload-zone" onclick="document.getElementById('fileInput').click()" 
-                         ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleDrop(event)">
-                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.6;margin-bottom:16px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                        <div style="font-weight:600;margin-bottom:4px;">Drop video file</div>
-                        <div style="font-size:12px;opacity:0.6">MP4, MOV, MKV supported</div>
-                        <input type="file" id="fileInput" style="display:none" accept=".mp4,.mov,.mkv,.webm" onchange="handleFile(this.files[0])">
-                    </div>
-                    
-                    <!-- Added pointer-events:stroke so canvas receives clicks, but usually it does anyway -->
-                    <canvas id="vCanvas" class="video-full" style="display:none;"></canvas>
-                    <!-- Overlay for clicks is safer -->
-                    <div id="vCanvasOverlay" style="position:absolute;inset:0;cursor:crosshair;display:none;"></div>
-                </div>
+        <!-- VIEWPORT -->
+        <div class="viewport-container" id="liveContainer">
+            <!-- Decorative Corners -->
+            <div class="corner-bracket cb-tl"></div>
+            <div class="corner-bracket cb-tr"></div>
+            <div class="corner-bracket cb-bl"></div>
+            <div class="corner-bracket cb-br"></div>
 
-                <!-- Shared Overlays -->
-                <div class="overlay-badge badge-fps">
-                    <span style="opacity:0.6">FPS</span>
-                    <span id="fpsVal">0</span>
-                </div>
-                <div class="overlay-badge badge-mode">
-                    <span id="modeLabel">IDLE</span>
-                </div>
-                <div id="trackBadge" class="overlay-badge badge-tracking">
-                    <span>● TRACKING ACTIVE</span>
-                </div>
-                
-                <!-- Export Progress (at bottom of preview) -->
-                <div id="exportProgressContainer" class="progress-container" style="display:none;">
-                    <div id="exportProgressFill" class="progress-fill"></div>
-                </div>
-
+            <!-- Content -->
+            <img id="videoStream" alt="Live Feed" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7">
+            <canvas id="vCanvas"></canvas>
+            
+            <!-- Drag & Drop Zone -->
+            <div id="uploadZone" ondrop="handleDrop(event)" ondragover="event.preventDefault(); this.classList.add('drag-over');" ondragleave="this.classList.remove('drag-over')">
+                <div style="font-size:32px; color:var(--neon-cyan);">⭳</div>
+                <div>DROP FOOTAGE FOR ANALYSIS</div>
+                <div style="font-size:10px; opacity:0.5; font-family:var(--hud-font);">.MP4 .MOV .AVI</div>
+                <input type="file" id="fileInput" hidden onchange="handleFile(this.files[0])">
+                <button class="btn-cyber" onclick="document.getElementById('fileInput').click()">BROWSE FILES</button>
             </div>
 
-            <!-- Bottom Control Strip -->
-            <div class="control-strip">
-                
-                <!-- Live Controls -->
-                <div id="liveControls" class="control-group" style="display:flex; width:100%; justify-content:space-between;">
-                    <div style="display:flex; gap:16px;">
-                        <button id="startBtn" class="btn-action btn-primary" onclick="startVision()">
-                            <span>▶ Start Vision</span>
-                        </button>
-                        <button id="stopBtn" class="btn-action btn-glass" onclick="stopVision()" disabled>
-                            <span>⏹ Stop</span>
-                        </button>
-                    </div>
-                    <!-- Empty right side for spacing -->
-                    <div></div> 
-                </div>
-
-                <!-- Video Controls -->
-                <div id="videoControls" class="control-group" style="display:none; width:100%; justify-content:space-between;">
-                    <div style="display:flex; align-items:center; gap:16px; flex:1;">
-                        <button id="vPlayBtn" class="btn-action btn-primary" onclick="vTogglePlay()">
-                            <span>▶ Play</span>
-                        </button>
-                        
-                        <div style="flex:1; display:flex; flex-direction:column; gap:4px; max-width:400px;">
-                            <input type="range" id="vSeek" min="0" max="100" value="0" oninput="vOnSeek(this.value)">
-                            <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-tertiary);">
-                                <span id="vTimeCurrent">0:00</span>
-                                <span id="vTimeTotal">0:00</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style="display:flex; gap:20px; border-left:1px solid var(--card-border); padding-left:20px;">
-                        <div class="slider-group">
-                            <div class="slider-label"><span>Blur Strength</span> <span id="blurVal">85%</span></div>
-                            <input type="range" id="blurSlide" min="0" max="100" value="85" oninput="vUpdateSettings()">
-                        </div>
-                        <div class="slider-group">
-                            <div class="slider-label"><span>Focus Bias</span> <span id="biasVal">0</span></div>
-                            <input type="range" id="biasSlide" min="-50" max="50" value="0" oninput="vUpdateSettings()">
-                        </div>
-                    </div>
-                </div>
-
-            </div>
+            <!-- Overlays -->
+            <div class="live-badge" id="recBadge">REC • LIVE</div>
+            
+            <!-- Click/Touch Layer for Autofocus -->
+            <div id="interactionLayer" style="position:absolute; inset:0; z-index:15;" onmousedown="handleViewportClick(event)"></div>
+            <div id="focusRing" class="focus-ring"></div>
         </div>
 
-        <!-- RIGHT: AI PANEL -->
-        <div class="control-panel">
+        <!-- RIGHT PANEL -->
+        <aside class="control-panel">
             
-            <div data-section="modes">
-                <div class="panel-section-title">Vision Modes</div>
+            <!-- MODES -->
+            <div>
+                <div class="panel-section-title">
+                    <span>VISION PROTOCOLS</span>
+                    <span style="font-size:10px;">V2.4</span>
+                </div>
                 
-                <!-- Object Detection -->
-                <div class="mode-card active" onclick="setMode('object_detection')" data-mode="object_detection">
-                    <div class="mode-title">
-                        Object Detection 
-                        <span class="mode-icon">🎯</span>
+                <div class="mode-grid">
+                    <div class="cyber-card active" onclick="setMode('object_detection')" data-mode="object_detection">
+                        <div class="card-header">
+                            <span class="card-title">YOLO DETECT</span>
+                            <span class="card-icon">🎯</span>
+                        </div>
+                        <div class="card-desc">Real-time threat identification and bbox segmentation overlay.</div>
                     </div>
-                    <div class="mode-desc">Real-time YOLO classification and bounding box rendering.</div>
-                </div>
 
-                <!-- Cinematic Autofocus -->
-                <div class="mode-card" onclick="setMode('autofocus')" data-mode="autofocus">
-                    <div class="mode-title">
-                        Cinematic Autofocus 
-                        <span class="mode-icon">🎬</span>
+                    <div class="cyber-card" onclick="setMode('autofocus')" data-mode="autofocus">
+                        <div class="card-header">
+                            <span class="card-title">CINE-FOCUS</span>
+                            <span class="card-icon">🎬</span>
+                        </div>
+                        <div class="card-desc">Depth-aware cinematic rack focus with Gaussian blur simulation.</div>
                     </div>
-                    <div class="mode-desc">Rack focus simulator with depth-of-field blur.</div>
-                </div>
 
-                <!-- Video Upload -->
-                <div class="mode-card" onclick="enableVideoMode()" id="btnVideoMode">
-                    <div class="mode-title">
-                        Video Upload 
-                        <span class="mode-icon">🎞</span>
+                    <div class="cyber-card" onclick="toggleVideoMode()" id="btnVideoMode">
+                        <div class="card-header">
+                            <span class="card-title">POST-PROCESS</span>
+                            <span class="card-icon">🎞</span>
+                        </div>
+                        <div class="card-desc">Ingest and process pre-recorded footage.</div>
                     </div>
-                    <div class="mode-desc">Apply AI effects to pre-recorded footage.</div>
-                </div>
-
-                <!-- Disabled -->
-                <div class="mode-card" style="opacity:0.5; cursor:not-allowed;">
-                    <div class="mode-title">Face Recognition <span class="mode-icon">🔒</span></div>
                 </div>
             </div>
 
-            <div data-section="stats" style="margin-top:12px;">
-                <div class="panel-section-title">Real-time Telemetry</div>
+            <!-- TELEMETRY -->
+            <div style="flex-shrink:0;">
+                <div class="panel-section-title">
+                    <span>BIOMETRICS</span>
+                    <span id="objCountBadge" style="color:var(--neon-cyan)">0 OBJ</span>
+                </div>
+
+                <div class="telemetry-row">
+                    <div class="t-label-row"><span>INFERENCE LATENCY</span> <span id="valLat">0ms</span></div>
+                    <div class="t-bar-bg"><div class="t-bar-fill" id="barLat"></div></div>
+                </div>
+
+                <div class="telemetry-row">
+                    <div class="t-label-row"><span>SYSTEM FPS</span> <span id="valFps">0</span></div>
+                    <div class="t-bar-bg"><div class="t-bar-fill" id="barFps"></div></div>
+                </div>
                 
-                <!-- Video Actions (Export) -->
-                <div id="vExportPanel" style="display:none; margin-bottom:16px;">
-                    <button class="btn-action btn-glass" style="width:100%; justify-content:center; color:#60A5FA; border-color:rgba(96,165,250,0.3);" onclick="vStartExport()">
-                        Export Stabilized Video ➜
-                    </button>
-                    <div id="exportStatus" style="text-align:center; font-size:11px; margin-top:8px; opacity:0.7;"></div>
-                </div>
-
-                <div class="stats-grid">
-                    <div class="stat-box">
-                        <div class="stat-val" id="objCount">0</div>
-                        <div class="stat-lbl">Objects</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-val" id="inferTime">0ms</div>
-                        <div class="stat-lbl">Latency</div>
-                    </div>
-                </div>
-
-                <div class="hardware-monitor" style="margin-top:12px;">
-                    <div class="hw-row"><span>Backend FPS</span> <span id="hwFps">0</span></div>
-                    <div class="hw-bar-bg"><div id="barFps" class="hw-bar-fill"></div></div>
-                    
-                    <div class="hw-row"><span>CPU Load</span> <span id="hwCpu">0%</span></div>
-                    <div class="hw-bar-bg"><div id="barCpu" class="hw-bar-fill"></div></div>
-                    
-                    <div class="hw-row"><span>Memory</span> <span id="hwMem">0%</span></div>
-                    <div class="hw-bar-bg"><div id="barMem" class="hw-bar-fill"></div></div>
-                </div>
-
-            </div>
-
-             <div data-section="detections" style="margin-top:12px; flex:1;">
-                <div class="panel-section-title">Detection Log</div>
-                <div id="detectionLog" style="font-size:12px; font-family:monospace; opacity:0.7; height:150px; overflow:hidden; mask-image:linear-gradient(to bottom, black 80%, transparent);">
-                    <!-- dynamic content -->
-                    <div style="padding:4px 0;">System ready...</div>
+                <div class="telemetry-row">
+                    <div class="t-label-row"><span>CPU LOAD</span> <span id="valCpu">0%</span></div>
+                    <div class="t-bar-bg"><div class="t-bar-fill" id="barCpu"></div></div>
                 </div>
             </div>
+            
+            <!-- LOGS -->
+            <div style="flex:1; display:flex; flex-direction:column; min-height:150px;">
+                <div class="panel-section-title"><span>SYSTEM LOG</span></div>
+                <div class="sys-log">
+                    <div class="log-entries" id="consoleLog">
+                        <div class="log-line">System initialized... awaiting input.</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Video Export Panel -->
+            <div id="exportPanel" style="display:none; border-top:1px solid rgba(255,255,255,0.1); padding-top:16px;">
+                <button class="btn-cyber" style="width:100%; justify-content:center;" onclick="vStartExport()">RENDER & EXPORT ➜</button>
+                <div id="exportStatus" style="font-size:10px; margin-top:8px; text-align:center; color:rgba(255,255,255,0.5);"></div>
+            </div>
 
-        </div>
+        </aside>
+
+        <!-- FOOTER ACTIONS -->
+        <footer class="action-bar">
+            <!-- Left: Connection Controls -->
+            <div style="display:flex; gap:12px;">
+                <button id="btnStart" class="btn-cyber" onclick="startVision()">INITIATE</button>
+                <button id="btnStop" class="btn-cyber btn-danger" onclick="stopVision()" disabled>TERMINATE</button>
+            </div>
+
+            <!-- Center: Video Player Controls (Only visible in video mode) -->
+            <div id="playerControls" class="video-controls">
+                <button class="btn-cyber" style="padding:4px 8px;" onclick="vTogglePlay()"><span id="playIcon">▶</span></button>
+                <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+                    <input type="range" id="vSeek" min="0" max="100" value="0" step="1" oninput="vOnSeek(this.value)">
+                </div>
+                <div style="font-family:var(--hud-font); font-size:10px; color:rgba(255,255,255,0.5); width:80px; text-align:right;">
+                    <span id="tCurr">0:00</span> / <span id="tTot">0:00</span>
+                </div>
+            </div>
+
+            <!-- Right: Settings Sliders (Blur/Bias) -->
+            <div id="sliderControls" style="display:none; gap:24px; margin-left:24px;">
+                <div style="width:100px;">
+                    <div style="font-size:9px; margin-bottom:4px; display:flex; justify-content:space-between;">
+                        <span>BLUR</span> <span id="valBlur">85%</span>
+                    </div>
+                    <input type="range" id="blurSlide" min="0" max="100" value="85" oninput="vUpdateSettings()">
+                </div>
+                <div style="width:100px;">
+                    <div style="font-size:9px; margin-bottom:4px; display:flex; justify-content:space-between;">
+                        <span>BIAS</span> <span id="valBias">0</span>
+                    </div>
+                    <input type="range" id="biasSlide" min="-50" max="50" value="0" oninput="vUpdateSettings()">
+                </div>
+            </div>
+        </footer>
+
     </div>
 
-    <!-- JAVASCRIPT LOGIC -->
+    <!-- SCRIPT LOGIC -->
     <script>
         // ── STATE ────────────────────────────────────────────────────────────
         let ws = null;
@@ -642,23 +613,20 @@
         let vPlaying = false;
         const vCanvas = document.getElementById('vCanvas');
         const vCtx    = vCanvas.getContext('2d');
-        
-        // Use animation frame for smoother rendering
-        let vRafHandle = null;
-        let vFrameBuffer = [];
 
         // ── LIVE MODE ────────────────────────────────────────────────────────
         function startVision() {
             if(ws) ws.close();
             ws = new WebSocket('ws://localhost:8000/ws/video');
             
+            logSystem('Initiating WebSocket handshake...');
             updateConnStatus('connecting');
 
             ws.onopen = () => {
                 isConnected = true;
                 updateConnStatus('connected');
-                document.getElementById('startBtn').disabled = true;
-                document.getElementById('stopBtn').disabled = false;
+                toggleLiveControls(true);
+                logSystem('Uplink established. Streaming data.');
                 
                 // Restore mode
                 ws.send(JSON.stringify({ type: 'switch_mode', mode: currentMode }));
@@ -668,14 +636,13 @@
                 const data = JSON.parse(evt.data);
                 if(data.frame) renderLiveFrame(data);
                 if(data.performance) updateTelemetry(data);
-                if(data.autofocus) updateAutofocusState(data.autofocus);
             };
 
             ws.onclose = () => {
                 isConnected = false;
                 updateConnStatus('disconnected');
-                document.getElementById('startBtn').disabled = false;
-                document.getElementById('stopBtn').disabled = true;
+                toggleLiveControls(false);
+                logSystem('Uplink terminated.');
             };
         }
 
@@ -683,192 +650,165 @@
             if(ws) ws.close();
         }
 
+        function toggleLiveControls(active) {
+            document.getElementById('btnStart').disabled = active;
+            document.getElementById('btnStop').disabled = !active;
+            document.getElementById('recBadge').className = active ? 'live-badge show-rec' : 'live-badge';
+        }
+
         function renderLiveFrame(data) {
             const img = document.getElementById('videoStream');
             img.src = 'data:image/jpeg;base64,' + data.frame;
-            document.getElementById('fpsVal').innerText = data.fps || 0;
+            document.getElementById('valFps').innerText = data.fps || 0;
             
-            // Log detections
+            // Log valuable detections
             if(data.objects && data.objects.length > 0) {
-                 const log = document.getElementById('detectionLog');
-                 const entry = document.createElement('div');
-                 entry.style.padding = '2px 0';
-                 entry.innerText = `> ${data.objects[0].class} (${Math.round(data.objects[0].confidence*100)}%)`;
-                 log.prepend(entry);
-                 if(log.children.length > 10) log.lastChild.remove();
+                 // Throttle logs slightly to avoid spam
+                 if(Math.random() > 0.9) { 
+                     logSystem(`Detected: ${data.objects[0].class} (${Math.round(data.objects[0].confidence*100)}%)`);
+                 }
             }
         }
 
         function updateTelemetry(data) {
-            document.getElementById('objCount').innerText = data.detections || 0;
-            document.getElementById('inferTime').innerText = (data.inference_time || 0) + 'ms';
+            document.getElementById('objCountBadge').innerText = (data.detections || 0) + ' OBJ';
+            document.getElementById('valLat').innerText = (data.inference_time || 0) + 'ms';
             
             const perf = data.performance;
-            setProgress('barFps', perf.fps.current, 30);
-            document.getElementById('hwFps').innerText = perf.fps.current;
             
-            setProgress('barCpu', perf.system.cpu, 100);
-            document.getElementById('hwCpu').innerText = perf.system.cpu + '%';
+            // Inference Latency Bar (scale 0-100ms)
+            const latPct = Math.min((data.inference_time / 100) * 100, 100);
+            document.getElementById('barLat').style.width = latPct + '%';
             
-            setProgress('barMem', perf.system.memory, 100);
-            document.getElementById('hwMem').innerText = perf.system.memory + '%';
-        }
-
-        function setProgress(id, val, max) {
-            const el = document.getElementById(id);
-            const pct = Math.min((val/max)*100, 100);
-            el.style.width = pct + '%';
-            if(pct > 80) el.classList.add('active'); else el.classList.remove('active');
+            // FPS Bar (scale 0-60)
+            const fpsPct = Math.min((perf.fps.current / 60) * 100, 100);
+            document.getElementById('barFps').style.width = fpsPct + '%';
+            
+            // CPU Bar
+            document.getElementById('valCpu').innerText = perf.system.cpu + '%';
+            document.getElementById('barCpu').style.width = perf.system.cpu + '%';
+            if(perf.system.cpu > 80) document.getElementById('barCpu').classList.add('fill-danger');
+            else document.getElementById('barCpu').classList.remove('fill-danger');
         }
 
         function updateConnStatus(status) {
-            const dot = document.querySelector('#connStatus .status-dot');
+            const dot = document.getElementById('connDot');
             const txt = document.getElementById('connText');
             
+            dot.className = 'status-dot';
             if(status === 'connected') {
-                dot.className = 'status-dot active';
-                txt.innerText = 'Connected';
+                dot.classList.add('active');
+                txt.innerText = 'ONLINE';
+                txt.style.color = 'var(--neon-success)';
             } else if (status === 'connecting') {
-                dot.className = 'status-dot warning';
-                txt.innerText = 'Connecting...';
+                dot.classList.add('warning');
+                txt.innerText = 'CONNECTING...';
+                txt.style.color = 'var(--neon-warn)';
             } else {
-                dot.className = 'status-dot inactive';
-                txt.innerText = 'Disconnected';
+                txt.innerText = 'OFFLINE';
+                txt.style.color = 'inherit';
             }
         }
 
         function setMode(mode) {
-            // Exit video mode if active
-            if(isVideoMode) exitVideoMode();
+            if(isVideoMode) return; // Don't switch if in video upload mode
 
             currentMode = mode;
+            logSystem(`Protocol switched: ${mode.toUpperCase()}`);
             
             // Update UI Cards
-            document.querySelectorAll('.mode-card').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.cyber-card').forEach(el => el.classList.remove('active'));
             document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
             
-            document.getElementById('modeLabel').innerText = mode.replace('_', ' ').toUpperCase();
-
             // Send to backend
             if(ws && isConnected) {
                 ws.send(JSON.stringify({ type: 'switch_mode', mode: mode }));
             }
-
-            // Autofocus UI
-            const isAF = (mode === 'autofocus');
-            document.getElementById('autofocusHint').style.display = isAF ? 'block' : 'none';
-            document.getElementById('liveContainer').style.cursor = isAF ? 'crosshair' : 'default';
+            
+            // Show sliders?
+            const showSliders = (mode === 'autofocus');
+            document.getElementById('sliderControls').style.display = showSliders ? 'flex' : 'none';
         }
 
         // ── AUTOFOCUS INTERACTION ────────────────────────────────────────────
-        document.getElementById('liveContainer').addEventListener('pointerdown', (e) => {
-            if(currentMode !== 'autofocus' || !isConnected) return;
-            
-            const rect = e.currentTarget.getBoundingClientRect();
-            // Assuming video is fitted containment, we need mapped coords
-            // For simplicity in this UI demo, we send relative coords * 640/480
-            const x = (e.clientX - rect.left) / rect.width;
-            const y = (e.clientY - rect.top) / rect.height;
-            
-            ws.send(JSON.stringify({ 
-                type: 'autofocus_click', 
-                x: Math.round(x*640), 
-                y: Math.round(y*480) 
-            }));
+        function handleViewportClick(e) {
+            // Works for both Live and Video mode if configured right
+            const rect = e.target.getBoundingClientRect();
+            const xPct = (e.clientX - rect.left) / rect.width;
+            const yPct = (e.clientY - rect.top) / rect.height;
 
-            // Frontend feedback
+            // Visual Feedback
             const ring = document.getElementById('focusRing');
             ring.style.display = 'block';
-            ring.style.left = (e.clientX - rect.left) + 'px';
-            ring.style.top = (e.clientY - rect.top) + 'px';
+            ring.style.left = (e.clientX - rect.left + 24) + 'px'; // +24 for margin offset if needed, but here overlay is exact
+            ring.style.top = (e.clientY - rect.top + 24) + 'px';
+            ring.style.left = e.clientX + 'px'; // Actually use page coords for fixed elements? NO, parent is relative?
+            // The ring is inside viewport-container which is relative.
+            // But the click is on interactionLayer.
+            // Let's position relative to container
+            ring.style.left = (e.clientX - document.getElementById('liveContainer').getBoundingClientRect().left) + 'px';
+            ring.style.top = (e.clientY - document.getElementById('liveContainer').getBoundingClientRect().top) + 'px';
             
-            // Remove animation class to re-trigger
             ring.style.animation = 'none';
-            ring.offsetHeight; /* trigger reflow */
+            ring.offsetHeight; 
             ring.style.animation = 'ping 1s cubic-bezier(0, 0, 0.2, 1)';
-        });
-
-        function updateAutofocusState(af) {
-            const badge = document.getElementById('trackBadge');
-            if(af.state === 'tracking') {
-                badge.style.display = 'flex';
-                badge.innerHTML = '<span>● SUBJECT LOCKED</span>';
-                badge.style.color = 'var(--success)';
-            } else if (af.state === 'grace') {
-                badge.style.display = 'flex';
-                badge.innerHTML = '<span>○ SEARCHING...</span>';
-                badge.style.color = 'var(--warning)';
-            } else {
-                badge.style.display = 'none';
+            
+            if(isVideoMode && vWs) {
+                // Video Mode Click
+                 const fx = Math.round(xPct * vCanvas.width);
+                 const fy = Math.round(yPct * vCanvas.height);
+                 vWs.send(JSON.stringify({ type: 'video_click', x: fx, y: fy, frame: vCurrentFrame }));
+                 logSystem(`Focus point set: ${fx},${fy}`);
+            } else if (ws && isConnected && currentMode === 'autofocus') {
+                // Live Mode Click
+                ws.send(JSON.stringify({ 
+                    type: 'autofocus_click', 
+                    x: Math.round(xPct * 640), 
+                    y: Math.round(yPct * 480) 
+                }));
             }
         }
 
-
         // ── VIDEO UPLOAD MODE ────────────────────────────────────────────────
-        function enableVideoMode() {
-            startTransition(() => {
-                isVideoMode = true;
-                
-                // UI Swaps
-                document.getElementById('liveContainer').style.display = 'none';
-                document.getElementById('videoUploadContainer').style.display = 'block';
-                
-                document.getElementById('liveControls').style.display = 'none';
-                document.getElementById('videoControls').style.display = 'flex';
-                
-                // Cards
-                document.querySelectorAll('.mode-card').forEach(el => el.classList.remove('active'));
-                document.getElementById('btnVideoMode').classList.add('active');
-                document.getElementById('modeLabel').innerText = "STUDIO EDITOR";
-
-                document.getElementById('vExportPanel').style.display = 'block';
-            });
-        }
-
-        function exitVideoMode() {
-            startTransition(() => {
+        function toggleVideoMode() {
+            if(isVideoMode) {
+                // EXIT
                 isVideoMode = false;
-                
-                // UI Swaps
-                document.getElementById('liveContainer').style.display = 'block';
-                document.getElementById('videoUploadContainer').style.display = 'none';
-                
-                document.getElementById('liveControls').style.display = 'flex';
-                document.getElementById('videoControls').style.display = 'none';
-                
-                document.getElementById('vExportPanel').style.display = 'none';
-
-                // Cleanup
-                if(vWs) vWs.close();
-                if(vSessionId) {
-                    fetch(`http://localhost:8000/video/${vSessionId}`, {method:'DELETE'}).catch(()=>{});
-                    vSessionId = null;
-                }
-                
-                // Reset upload UI
-                document.getElementById('uploadZone').style.display = 'flex';
+                document.getElementById('videoStream').style.display = 'block';
                 document.getElementById('vCanvas').style.display = 'none';
-                document.getElementById('vCanvasOverlay').style.display = 'none';
-            });
-            
-            // Return to object detection by default
-            setMode('object_detection');
-        }
+                document.getElementById('uploadZone').classList.remove('active-mode');
+                
+                document.getElementById('playerControls').style.display = 'none';
+                document.getElementById('exportPanel').style.display = 'none';
+                document.getElementById('sliderControls').style.display = 'none';
+                
+                // Reset card
+                document.querySelectorAll('.cyber-card').forEach(el => el.classList.remove('active'));
+                setMode('object_detection'); // Default back
+                
+                if(vWs) vWs.close();
 
-        // Animated transition helper
-        function startTransition(cb) {
-             const engine = document.querySelector('.visual-engine');
-             engine.style.opacity = 0;
-             setTimeout(() => {
-                 cb();
-                 engine.style.opacity = 1;
-             }, 200);
+            } else {
+                // ENTER
+                if(ws) ws.close(); // Close live connection
+                
+                isVideoMode = true;
+                document.getElementById('videoStream').style.display = 'none';
+                document.getElementById('vCanvas').style.display = 'block'; // Or none until upload
+                document.getElementById('uploadZone').classList.add('active-mode');
+
+                document.getElementById('playerControls').style.display = 'flex';
+                document.getElementById('sliderControls').style.display = 'flex';
+                document.getElementById('exportPanel').style.display = 'block';
+
+                document.querySelectorAll('.cyber-card').forEach(el => el.classList.remove('active'));
+                document.getElementById('btnVideoMode').classList.add('active');
+            }
         }
 
         async function handleFile(file) {
             if(!file) return;
-            const zone = document.getElementById('uploadZone');
-            zone.innerHTML = `<div class="status-dot active"></div> Uploading ${file.name}...`;
+            logSystem(`Uploading: ${file.name}`);
 
             const fd = new FormData(); fd.append('file', file);
             
@@ -880,20 +820,19 @@
                 vTotalFrames = d.metadata.frame_count;
                 vFps = d.metadata.fps;
                 
-                // Setup playback UI
-                zone.style.display = 'none';
+                // Hide drop zone
+                document.getElementById('uploadZone').classList.remove('active-mode');
                 vCanvas.style.display = 'block';
-                document.getElementById('vCanvasOverlay').style.display = 'block';
                 vCanvas.width = d.metadata.width;
                 vCanvas.height = d.metadata.height;
                 
                 document.getElementById('vSeek').max = vTotalFrames - 1;
-                document.getElementById('vTimeTotal').innerText = fmtTime(d.metadata.duration);
+                document.getElementById('tTot').innerText = fmtTime(d.metadata.duration);
 
                 connectVideoWs();
 
             } catch(e) {
-                zone.innerHTML = `<span style="color:var(--error)">Error: ${e.message}</span>`;
+                logSystem(`Error: ${e.message}`);
             }
         }
         
@@ -908,6 +847,7 @@
             vWs = new WebSocket(`ws://localhost:8000/ws/video-upload/${vSessionId}`);
             
             vWs.onopen = () => {
+                logSystem('Video session ready.');
                 vWs.send(JSON.stringify({ type: 'video_seek', frame: 0 }));
             };
             
@@ -926,25 +866,18 @@
             
             vCurrentFrame = msg.frame_index;
             document.getElementById('vSeek').value = vCurrentFrame;
-            document.getElementById('vTimeCurrent').innerText = fmtTime(vCurrentFrame/vFps);
-            
-            if(msg.state === 'tracking') {
-                document.getElementById('trackBadge').style.display = 'flex';
-                document.getElementById('trackBadge').style.color = 'var(--success)';
-            } else {
-                document.getElementById('trackBadge').style.display = 'none';
-            }
+            document.getElementById('tCurr').innerText = fmtTime(vCurrentFrame/vFps);
         }
 
         function vTogglePlay() {
             vPlaying = !vPlaying;
-            document.querySelector('#vPlayBtn span').innerText = vPlaying ? '⏸ Pause' : '▶ Play';
+            document.getElementById('playIcon').innerText = vPlaying ? '⏸' : '▶';
             vWs.send(JSON.stringify({ type: vPlaying ? 'video_play' : 'video_pause' }));
         }
 
         function vOnSeek(val) {
             vPlaying = false;
-            document.querySelector('#vPlayBtn span').innerText = '▶ Play';
+            document.getElementById('playIcon').innerText = '▶';
             vWs.send(JSON.stringify({ type: 'video_seek', frame: parseInt(val) }));
         }
 
@@ -952,8 +885,8 @@
             const blur = parseInt(document.getElementById('blurSlide').value) / 100;
             const bias = parseInt(document.getElementById('biasSlide').value) / 100;
             
-            document.getElementById('blurVal').innerText = Math.round(blur*100) + '%';
-            document.getElementById('biasVal').innerText = bias;
+            document.getElementById('valBlur').innerText = Math.round(blur*100) + '%';
+            document.getElementById('valBias').innerText = bias;
 
             vWs.send(JSON.stringify({
                 type: 'video_settings',
@@ -962,38 +895,20 @@
             }));
         }
 
-        // Tap to track in video editor
-        document.getElementById('vCanvasOverlay').addEventListener('mousedown', (e) => {
-             const rect = e.target.getBoundingClientRect();
-             const px = (e.clientX - rect.left) / rect.width;
-             const py = (e.clientY - rect.top) / rect.height;
-             
-             // Map to actual video dims
-             const fx = Math.round(px * vCanvas.width);
-             const fy = Math.round(py * vCanvas.height);
-
-             vWs.send(JSON.stringify({
-                 type: 'video_click',
-                 x: fx, y: fy,
-                 frame: vCurrentFrame
-             }));
-        });
-        
         // Export
         function vStartExport() {
-            document.getElementById('exportProgressContainer').style.display = 'block';
-            document.getElementById('exportStatus').innerText = "Rendering stabilized video...";
+            logSystem("Starting render job...");
+            document.getElementById('exportStatus').innerText = "Hold on tight...";
             vWs.send(JSON.stringify({ type: 'video_export' }));
         }
         
         function updateExport(pct) {
-            document.getElementById('exportProgressFill').style.width = pct + '%';
-            document.getElementById('exportStatus').innerText = `Rendering frame ${pct}%`;
+            document.getElementById('exportStatus').innerText = `Rendering: ${pct}%`;
         }
         
         function finishExport(url) {
-            document.getElementById('exportProgressFill').style.width = '100%';
-            document.getElementById('exportStatus').innerHTML = `<a href="http://localhost:8000${url}" target="_blank" style="color:var(--success)">Download Completed Video</a>`;
+            document.getElementById('exportStatus').innerHTML = `<a href="http://localhost:8000${url}" target="_blank" style="color:var(--neon-success); text-decoration:none; border-bottom:1px solid var(--neon-success);">DOWNLOAD RENDER</a>`;
+            logSystem("Render complete.");
         }
 
         // Utils
@@ -1002,10 +917,27 @@
             const sec = Math.floor(s%60).toString().padStart(2, '0');
             return `${m}:${sec}`;
         }
-        
-        // Init
-        document.querySelector('.visual-engine').style.opacity = 1;
-        document.querySelector('.visual-engine').style.transition = 'opacity 0.5s ease-out';
+
+        function logSystem(msg) {
+            const log = document.getElementById('consoleLog');
+            const entry = document.createElement('div');
+            entry.className = 'log-line';
+            // Add timestamp
+            const time = new Date().toLocaleTimeString('en-US', {hour12:false, hour:'2-digit', minute:'2-digit', second:'2-digit'});
+            entry.innerHTML = `<span style="opacity:0.5">[${time}]</span> ${msg}`;
+            log.prepend(entry);
+            if(log.children.length > 20) log.lastChild.remove();
+        }
+
+        // Add some CSS keyframes via JS or reuse existing
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes ping {
+                0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; }
+                100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
 
     </script>
 </body>

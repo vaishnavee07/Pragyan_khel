@@ -37,6 +37,7 @@ else:
 
 # Import autofocus module
 from modules.autofocus_module import AutofocusModule
+from modules.yolo_seg_module import YOLOv8SegModule
 
 app = FastAPI(
     title="SentraVision AI Platform",
@@ -67,11 +68,42 @@ ai_engine.register_module('object_detection', detection_module)
 
 # Register cinematic autofocus module
 autofocus_module = AutofocusModule({
-    'bbox_size':    120,
-    'focus_radius': 75,    # tight circle around subject
-    'blur_ksize':   101,   # heavy background blur
-    'feather':      30,
+    'bbox_size':         120,
+    'mode':              'blur',
+    # ── Engine selection ─────────────────────────────────────
+    # True  = ProximityBlurEngine  (lightweight, 20-30 FPS, no AI overhead)
+    # False = TrackingAutofocusEngine (depth + YOLO-seg, higher quality)
+    'proximity_mode':    True,
+    # ── Proximity engine tuning ─────────────────────────────
+    'min_blur_k':        5,       # kernel for nearest neighbour
+    'max_blur_k':        35,      # kernel for far background
+    'feather':           10,      # soft edge gradient around subject box
+    'grace_period':      0.8,
+    'bbox_alpha':        0.70,    # Feature 4: bbox smoothing
+    'blur_alpha':        0.80,    # Feature 2: temporal blur smoothing
+    'transition_frames': 20,      # Feature 2: rack-focus ramp length
+    # ── Full engine tuning (used when proximity_mode=False) ──────
+    'focus_radius':      75,
+    'blur_ksize':        101,
+    'use_segmentation':  True,
+    'seg_frame_skip':    0,
+    'depth_blur_k':      3.5,
+    'rack_focus_duration': 0.40,
 })
+
+# Inject detector into autofocus for isolation mode
+autofocus_module.set_detector(detection_module)
+
+# Create and inject YOLOv8-seg module for Full Silhouette Lock
+yolo_seg_module = YOLOv8SegModule()
+try:
+    yolo_seg_module.initialize()
+    autofocus_module.set_yolo_seg(yolo_seg_module)
+    ai_engine.register_module('yolo_seg', yolo_seg_module)
+    print("✓ YOLOv8-seg registered and wired to autofocus")
+except Exception as e:
+    print(f"⚠ YOLOv8-seg init failed: {e} — autofocus will use geometric fallback")
+
 ai_engine.register_module('autofocus', autofocus_module)
 
 # Initialize WebSocket handler
@@ -81,22 +113,26 @@ video_ws_handler = VideoWebSocketHandler(_video_sessions)
 @app.on_event("startup")
 async def startup_event():
     """Initialize platform on startup"""
-    print("=" * 60)
-    print("🔷 SentraVision AI Vision Platform v3.0 [Cinematic Autofocus]")
-    print("=" * 60)
+    print("=" * 70)
+    print("🔷 SentraVision AI Vision Platform v4.0 [Full Silhouette Lock]")
+    print("=" * 70)
     print(f"➤ Detector: {cfg.MODEL_TYPE.upper()}")
     print(f"➤ Device: {cfg.DEVICE.upper()}")
     print(f"➤ Person-only mode: {cfg.DETECT_ONLY_PERSON}")
     print("➤ Modular AI Engine initialized")
     print(f"➤ Available modes: {', '.join(ai_engine.get_available_modes())}")
     print("➤ Cinematic Autofocus: ENABLED")
+    print("➤ Full Silhouette Subject Lock: ENABLED")
+    print("   └─ Pixel-accurate person segmentation (MediaPipe)")
+    print("   └─ Edge recovery + anti-halo refinement")
+    print("   └─ Entire person sharp (arms, legs, hair, clothes)")
     
     # Activate default mode
     if ai_engine.switch_mode('object_detection'):
         print("✓ Detection module active")
     else:
         print("✗ Failed to activate detection")
-    print("=" * 60)
+    print("=" * 70)
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -137,6 +173,53 @@ async def activate_mode(mode_name: str):
     return {
         "success": success,
         "active_mode": ai_engine.get_active_mode() if success else None
+    }
+
+@app.post("/autofocus/mode")
+async def set_autofocus_mode(mode: str):
+    """
+    Switch autofocus mode between 'blur' and 'isolation'.
+    
+    Args:
+        mode: 'blur' (Gaussian blur background with segmentation support) or 
+              'isolation' (hard subject cutout)
+    
+    Returns:
+        { "success": bool, "mode": str }
+    """
+    if mode not in ['blur', 'isolation']:
+        return {
+            "success": False,
+            "error": f"Invalid mode '{mode}'. Use 'blur' or 'isolation'."
+        }
+    
+    autofocus_module.set_mode(mode)
+    
+    return {
+        "success": True,
+        "mode": mode
+    }
+
+@app.post("/autofocus/segmentation")
+async def set_autofocus_segmentation(enabled: bool):
+    """
+    Enable/disable pixel-accurate segmentation in blur mode.
+    
+    FULL SILHOUETTE SUBJECT LOCK MODE:
+    - When enabled: Uses AI segmentation for pixel-perfect person masking
+    - When disabled: Falls back to geometric bounding box masks
+    
+    Args:
+        enabled: True = segmentation on, False = geometric masks only
+    
+    Returns:
+        { "success": bool, "segmentation_enabled": bool }
+    """
+    autofocus_module.blur_engine.set_segmentation_enabled(enabled)
+    
+    return {
+        "success": True,
+        "segmentation_enabled": enabled
     }
 
 @app.websocket("/ws/video")
