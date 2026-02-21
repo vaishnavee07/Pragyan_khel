@@ -4,743 +4,1009 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SentraVision AI Platform</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            /* Color System */
+            --bg-primary: #0F1115;
+            --bg-secondary: #161920;
+            --card-glass: rgba(22, 25, 32, 0.7);
+            --card-border: rgba(255, 255, 255, 0.08);
+            
+            --accent-gradient: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%);
+            --accent-glow: rgba(139, 92, 246, 0.3);
+            
+            --text-primary: #FFFFFF;
+            --text-secondary: #9CA3AF;
+            --text-tertiary: #6B7280;
+            
+            --success: #10B981;
+            --warning: #F59E0B;
+            --error: #EF4444;
+            
+            /* Spacing */
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            
+            /* Transitions */
+            --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
         }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #fff;
-            padding: 20px;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
             min-height: 100vh;
-        }
-
-        .container {
-            max-width: 1600px;
-            margin: 0 auto;
-        }
-
-        header {
-            text-align: center;
-            margin-bottom: 30px;
-            animation: fadeInDown 0.8s ease-out;
-        }
-
-        h1 {
-            font-size: 3em;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .subtitle {
-            font-size: 1.2em;
-            opacity: 0.9;
-        }
-
-        .status-bar {
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 20px;
+            overflow-y: auto;
             display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ─────────────────────────────────────────────────── */
+        .app-header {
+            height: 60px;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
             justify-content: space-between;
-            align-items: center;
-            animation: fadeInUp 0.8s ease-out;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--card-border);
+            z-index: 10;
         }
 
-        .status-item {
+        .brand {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+        }
+
+        .brand-logo {
+            width: 32px;
+            height: 32px;
+            background: var(--accent-gradient);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        .brand-text h1 {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .brand-text span {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            font-weight: 400;
+            margin-left: 8px;
+            padding-left: 8px;
+            border-left: 1px solid var(--card-border);
+        }
+
+        .system-status {
+            display: flex;
+            gap: 20px;
+            font-size: 12px;
+            color: var(--text-secondary);
         }
 
         .status-dot {
-            width: 12px;
-            height: 12px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
-            animation: pulse 2s infinite;
+            display: inline-block;
+            margin-right: 6px;
         }
+        .status-dot.active { background: var(--success); box-shadow: 0 0 8px rgba(16, 185, 129, 0.4); }
+        .status-dot.inactive { background: var(--error); }
+        .status-dot.warning { background: var(--warning); }
 
-        .status-dot.green { background: #10b981; }
-        .status-dot.orange { background: #f59e0b; }
-        .status-dot.red { background: #ef4444; }
-
-        .main-grid {
+        /* ── Main Layout ────────────────────────────────────────────── */
+        .main-layout {
+            flex: 1;
             display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 20px;
-            animation: fadeIn 1s ease-out;
+            grid-template-columns: 1fr 380px; /* 70% / 30% roughly on desktop */
+            gap: 24px;
+            padding: 24px;
+            min-height: calc(100vh - 60px);
+            overflow: visible;
         }
 
-        .card {
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-        }
-
-        .card-header {
-            font-size: 1.5em;
-            margin-bottom: 15px;
+        /* ── Left Zone: Visual Engine ───────────────────────────────── */
+        .visual-engine {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .video-container {
+            flex-direction: column;
+            gap: 20px;
             position: relative;
-            width: 100%;
-            aspect-ratio: 4/3;
-            background: #000;
-            border-radius: 10px;
-            overflow: hidden;
+            min-height: 600px;
         }
 
-        #videoStream {
+        .preview-container {
+            flex: 1; /* Fills available vertical space */
+            min-height: 500px;
+            max-height: 75vh;
+            background: #000;
+            border-radius: var(--radius-lg);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 20px 50px -10px rgba(0,0,0,0.5);
+            border: 1px solid var(--card-border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .video-full {
             width: 100%;
             height: 100%;
             object-fit: contain;
         }
 
-        .controls {
+        /* Overlays inside Preview */
+        .overlay-badge {
+            position: absolute;
+            background: rgba(15, 17, 21, 0.85);
+            backdrop-filter: blur(8px);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.1);
+            pointer-events: none;
             display: flex;
-            gap: 10px;
-            margin-top: 15px;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .badge-fps { top: 20px; right: 20px; }
+        .badge-mode { top: 20px; left: 20px; color: var(--text-secondary); }
+        .badge-tracking { 
+            top: 20px; left: 50%; 
+            transform: translateX(-50%);
+            display: none; /* toggled by JS */
+            color: var(--success);
         }
 
-        .btn {
-            flex: 1;
-            padding: 12px 24px;
-            border: none;
+        /* Focus UI */
+        .focus-ring {
+            display: none;
+            position: absolute;
+            border: 2px solid rgba(139, 92, 246, 0.8);
+            border-radius: 50%;
+            width: 60px; height: 60px;
+            pointer-events: none;
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+            transform: translate(-50%, -50%);
+            animation: ping 1s cubic-bezier(0, 0, 0.2, 1);
+        }
+        
+        @keyframes ping {
+            0% { transform: translate(-50%, -50%) scale(0.8); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.4); opacity: 0; }
+        }
+
+        /* Bottom Control Strip (Timeline / Tools) */
+        .control-strip {
+            height: 80px;
+            background: var(--card-glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-lg);
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 140px;
+        }
+        
+        .slider-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px; height: 12px;
+            background: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+        .btn-action {
+            height: 40px;
+            padding: 0 20px;
             border-radius: 8px;
-            font-size: 1em;
+            border: none;
+            font-size: 13px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-
+        
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: white;
+            color: black;
+        }
+        .btn-primary:hover { background: #e5e7eb; transform: translateY(-1px); }
+        
+        .btn-glass {
+            background: rgba(255,255,255,0.05);
             color: white;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .btn-glass:hover { background: rgba(255,255,255,0.1); }
+        .btn-glass:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* ── Right Zone: AI Control Panel ───────────────────────────── */
+        .control-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            overflow-y: auto;
+            max-height: calc(100vh - 120px);
+            padding-right: 4px; /* Scrollbar padding */
+        }
+        
+        .control-panel::-webkit-scrollbar { width: 4px; }
+        .control-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+        .panel-section-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-tertiary);
+            margin-bottom: 12px;
         }
 
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .mode-selector {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .mode-btn {
-            padding: 15px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 10px;
-            color: white;
+        .mode-card {
+            background: var(--card-glass);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-md);
+            padding: 16px;
             cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: left;
+            transition: all 0.2s var(--ease-out);
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 12px;
         }
 
-        .mode-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            border-color: rgba(255, 255, 255, 0.4);
+        .mode-card:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.15);
         }
 
-        .mode-btn.active {
-            background: rgba(102, 126, 234, 0.5);
-            border-color: #667eea;
-            box-shadow: 0 0 20px rgba(102, 126, 234, 0.4);
+        .mode-card.active {
+            background: rgba(139, 92, 246, 0.1);
+            border-color: rgba(139, 92, 246, 0.5);
         }
 
+        .mode-card.active::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 3px;
+            background: var(--accent-gradient);
+        }
+
+        .mode-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .mode-icon { opacity: 0.7; }
+
+        .mode-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        /* Stats Grid */
         .stats-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-top: 15px;
+            gap: 12px;
         }
 
-        .stat-card {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 15px;
-            border-radius: 10px;
+        .stat-box {
+            background: rgba(255,255,255,0.03);
+            border-radius: var(--radius-md);
+            padding: 12px;
             text-align: center;
         }
+        
+        .stat-val { font-size: 18px; font-weight: 700; color: white; }
+        .stat-lbl { font-size: 11px; color: var(--text-tertiary); margin-top: 4px; }
 
-        .stat-value {
-            font-size: 2em;
-            font-weight: bold;
-            margin: 10px 0;
+        /* Hardware Monitor */
+        .hardware-monitor {
+            background: rgba(255,255,255,0.02);
+            border-radius: var(--radius-md);
+            padding: 16px;
         }
-
-        .stat-label {
-            font-size: 0.9em;
-            opacity: 0.8;
-        }
-
-        .detections-list {
-            max-height: 200px;
-            overflow-y: auto;
-            margin-top: 10px;
-        }
-
-        .detection-item {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 10px;
+        
+        .hw-row {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 12px; color: var(--text-secondary);
             margin-bottom: 8px;
-            border-radius: 8px;
-            display: flex;
-            justify-content: space-between;
         }
-
-        .performance-bars {
-            margin-top: 15px;
-        }
-
-        .bar-container {
-            margin-bottom: 15px;
-        }
-
-        .bar-label {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 5px;
-            font-size: 0.9em;
-        }
-
-        .bar {
-            width: 100%;
-            height: 8px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 4px;
+        
+        .hw-bar-bg {
+            height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
             overflow: hidden;
+            margin-bottom: 12px;
         }
-
-        .bar-fill {
+        
+        .hw-bar-fill {
             height: 100%;
-            background: linear-gradient(90deg, #10b981, #3b82f6);
-            transition: width 0.3s ease;
+            background: var(--text-tertiary); /* Default idle color */
+            width: 0%;
+            transition: width 0.5s;
         }
+        .hw-bar-fill.active { background: var(--success); }
 
-        @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        /* ── Video Upload specific ───────────────────────────────────── */
+        .upload-zone {
+            display: flex; flex-direction: column;
+            height: 100%; width: 100%;
+            align-items: center; justify-content: center;
+            border: 1px dashed rgba(255,255,255,0.2);
+            border-radius: var(--radius-lg);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
         }
-
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .upload-zone:hover { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.4); }
+        .upload-zone.drag-over { border-color: #3B82F6; background: rgba(59, 130, 246, 0.1); }
+        
+        /* Progress Bar (Export) */
+        .progress-container {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            height: 4px; background: rgba(255,255,255,0.1);
         }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        .alert-banner {
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            text-align: center;
-            font-weight: 600;
-            display: none;
-        }
-
-        .alert-banner.show {
-            display: block;
-            animation: fadeInDown 0.5s ease-out;
-        }
-
-        .alert-banner.normal { background: rgba(16, 185, 129, 0.3); }
-        .alert-banner.warning { background: rgba(245, 158, 11, 0.3); }
-        .alert-banner.critical { background: rgba(239, 68, 68, 0.3); }
+        .progress-fill { height: 100%; background: var(--success); width: 0%; transition: width 0.2s; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🔷 SentraVision</h1>
-            <p class="subtitle">AI Vision Platform v2.0</p>
-        </header>
 
-        <div id="alertBanner" class="alert-banner">
-            <span id="alertText"></span>
-        </div>
-
-        <div class="status-bar">
-            <div class="status-item">
-                <span class="status-dot green" id="connectionStatus"></span>
-                <span id="connectionText">Connecting...</span>
-            </div>
-            <div class="status-item">
-                <span>Mode: </span>
-                <strong id="currentMode">None</strong>
-            </div>
-            <div class="status-item">
-                <span>Alert: </span>
-                <strong id="alertLevel">NORMAL</strong>
+    <!-- Header -->
+    <header class="app-header">
+        <div class="brand">
+            <div class="brand-logo">S</div>
+            <div class="brand-text">
+                <h1>SentraVision</h1>
+                <span>AI VISION ENGINE</span>
             </div>
         </div>
-
-        <div class="main-grid">
+        <div class="system-status">
+            <div id="connStatus">
+                <span class="status-dot"></span> <span id="connText">Initializing...</span>
+            </div>
             <div>
-                <div class="card">
-                    <div class="card-header">
-                        <span>📹 Live Feed</span>
-                        <span id="fpsDisplay">0 FPS</span>
-                    </div>
-                    <div class="video-container" id="videoContainer" style="cursor:crosshair;">
-                        <img id="videoStream" alt="Video Stream" style="pointer-events:none;">
-                        <!-- Autofocus mode badge -->
-                        <div id="autofocusBadge" style="
-                            display:none;
-                            position:absolute;top:10px;right:10px;
-                            background:rgba(30,64,175,0.85);
-                            color:#93c5fd;
-                            padding:4px 10px;
-                            border-radius:20px;
-                            font-size:0.78em;font-weight:600;
-                            border:1px solid rgba(96,165,250,0.4);
-                            pointer-events:none;
-                        ">&#127775; CINEMATIC MODE</div>
-                        <!-- Focus ring overlay -->
-                        <div id="focusRing" style="
-                            display:none;
-                            position:absolute;
-                            border:2px solid rgba(96,165,250,0.9);
-                            border-radius:50%;
-                            width:60px;height:60px;
-                            pointer-events:none;
-                            box-shadow:0 0 12px rgba(96,165,250,0.5);
-                            transition:opacity 0.4s;
-                        "></div>
-                        <div id="focusDot" style="
-                            display:none;
-                            position:absolute;
-                            width:10px;height:10px;
-                            background:rgba(96,165,250,0.95);
-                            border-radius:50%;
-                            pointer-events:none;
-                            box-shadow:0 0 8px 3px rgba(96,165,250,0.45);
-                        "></div>
-                        <div id="autofocusHint" style="
-                            display:none;
-                            position:absolute;inset:0;
-                            align-items:center;justify-content:center;
-                            flex-direction:column;
-                            color:rgba(147,197,253,0.9);
-                            font-size:0.95em;text-align:center;
-                            pointer-events:none;
-                        ">
-                            Click to set focus point<br>
-                            <span style="font-size:0.8em;opacity:0.7;">Double-click to reset</span>
-                        </div>
-                    </div>
-                    <div class="controls">
-                        <button class="btn btn-primary" id="startBtn">Start Vision</button>
-                        <button class="btn btn-secondary" id="stopBtn" disabled>Stop Vision</button>
+                <span class="status-dot active"></span> GPU: Ready
+            </div>
+        </div>
+    </header>
+
+    <div class="main-layout">
+        
+        <!-- LEFT: VISUAL ENGINE -->
+        <div class="visual-engine">
+            
+            <!-- Preview Area -->
+            <div class="preview-container" id="previewContainer">
+                
+                <!-- LIVE MODE ELEMENTS -->
+                <div id="liveContainer" style="width:100%; height:100%; position:relative;">
+                    <!-- Added pointer-events:none to img so clicks pass through to container -->
+                    <img id="videoStream" class="video-full" alt="Stream Disconnected" style="pointer-events:none;">
+                    
+                    <div id="focusRing" class="focus-ring"></div>
+                    <div id="focusDot" style="display:none;position:absolute;width:8px;height:8px;background:#60A5FA;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;box-shadow:0 0 10px #60A5FA;"></div>
+                    
+                    <div id="autofocusHint" style="display:none;position:absolute;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.6);padding:8px 16px;border-radius:20px;font-size:12px;backdrop-filter:blur(4px);">
+                        Click to focus object
                     </div>
                 </div>
 
-                <div class="card" style="margin-top: 20px;">
-                    <div class="card-header">📊 Performance Metrics</div>
-                    <div class="performance-bars">
-                        <div class="bar-container">
-                            <div class="bar-label">
-                                <span>FPS</span>
-                                <span id="fpsValue">0</span>
-                            </div>
-                            <div class="bar">
-                                <div class="bar-fill" id="fpsBar" style="width: 0%"></div>
-                            </div>
-                        </div>
-                        <div class="bar-container">
-                            <div class="bar-label">
-                                <span>CPU Usage</span>
-                                <span id="cpuValue">0%</span>
-                            </div>
-                            <div class="bar">
-                                <div class="bar-fill" id="cpuBar" style="width: 0%"></div>
-                            </div>
-                        </div>
-                        <div class="bar-container">
-                            <div class="bar-label">
-                                <span>Memory Usage</span>
-                                <span id="memoryValue">0%</span>
-                            </div>
-                            <div class="bar">
-                                <div class="bar-fill" id="memoryBar" style="width: 0%"></div>
+                <!-- VIDEO UPLOAD ELEMENTS -->
+                <div id="videoUploadContainer" style="width:100%; height:100%; position:relative; display:none;">
+                    <div id="uploadZone" class="upload-zone" onclick="document.getElementById('fileInput').click()" 
+                         ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="handleDrop(event)">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.6;margin-bottom:16px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        <div style="font-weight:600;margin-bottom:4px;">Drop video file</div>
+                        <div style="font-size:12px;opacity:0.6">MP4, MOV, MKV supported</div>
+                        <input type="file" id="fileInput" style="display:none" accept=".mp4,.mov,.mkv,.webm" onchange="handleFile(this.files[0])">
+                    </div>
+                    
+                    <!-- Added pointer-events:stroke so canvas receives clicks, but usually it does anyway -->
+                    <canvas id="vCanvas" class="video-full" style="display:none;"></canvas>
+                    <!-- Overlay for clicks is safer -->
+                    <div id="vCanvasOverlay" style="position:absolute;inset:0;cursor:crosshair;display:none;"></div>
+                </div>
+
+                <!-- Shared Overlays -->
+                <div class="overlay-badge badge-fps">
+                    <span style="opacity:0.6">FPS</span>
+                    <span id="fpsVal">0</span>
+                </div>
+                <div class="overlay-badge badge-mode">
+                    <span id="modeLabel">IDLE</span>
+                </div>
+                <div id="trackBadge" class="overlay-badge badge-tracking">
+                    <span>● TRACKING ACTIVE</span>
+                </div>
+                
+                <!-- Export Progress (at bottom of preview) -->
+                <div id="exportProgressContainer" class="progress-container" style="display:none;">
+                    <div id="exportProgressFill" class="progress-fill"></div>
+                </div>
+
+            </div>
+
+            <!-- Bottom Control Strip -->
+            <div class="control-strip">
+                
+                <!-- Live Controls -->
+                <div id="liveControls" class="control-group" style="display:flex; width:100%; justify-content:space-between;">
+                    <div style="display:flex; gap:16px;">
+                        <button id="startBtn" class="btn-action btn-primary" onclick="startVision()">
+                            <span>▶ Start Vision</span>
+                        </button>
+                        <button id="stopBtn" class="btn-action btn-glass" onclick="stopVision()" disabled>
+                            <span>⏹ Stop</span>
+                        </button>
+                    </div>
+                    <!-- Empty right side for spacing -->
+                    <div></div> 
+                </div>
+
+                <!-- Video Controls -->
+                <div id="videoControls" class="control-group" style="display:none; width:100%; justify-content:space-between;">
+                    <div style="display:flex; align-items:center; gap:16px; flex:1;">
+                        <button id="vPlayBtn" class="btn-action btn-primary" onclick="vTogglePlay()">
+                            <span>▶ Play</span>
+                        </button>
+                        
+                        <div style="flex:1; display:flex; flex-direction:column; gap:4px; max-width:400px;">
+                            <input type="range" id="vSeek" min="0" max="100" value="0" oninput="vOnSeek(this.value)">
+                            <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--text-tertiary);">
+                                <span id="vTimeCurrent">0:00</span>
+                                <span id="vTimeTotal">0:00</span>
                             </div>
                         </div>
                     </div>
+
+                    <div style="display:flex; gap:20px; border-left:1px solid var(--card-border); padding-left:20px;">
+                        <div class="slider-group">
+                            <div class="slider-label"><span>Blur Strength</span> <span id="blurVal">85%</span></div>
+                            <input type="range" id="blurSlide" min="0" max="100" value="85" oninput="vUpdateSettings()">
+                        </div>
+                        <div class="slider-group">
+                            <div class="slider-label"><span>Focus Bias</span> <span id="biasVal">0</span></div>
+                            <input type="range" id="biasSlide" min="-50" max="50" value="0" oninput="vUpdateSettings()">
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- RIGHT: AI PANEL -->
+        <div class="control-panel">
+            
+            <div data-section="modes">
+                <div class="panel-section-title">Vision Modes</div>
+                
+                <!-- Object Detection -->
+                <div class="mode-card active" onclick="setMode('object_detection')" data-mode="object_detection">
+                    <div class="mode-title">
+                        Object Detection 
+                        <span class="mode-icon">🎯</span>
+                    </div>
+                    <div class="mode-desc">Real-time YOLO classification and bounding box rendering.</div>
+                </div>
+
+                <!-- Cinematic Autofocus -->
+                <div class="mode-card" onclick="setMode('autofocus')" data-mode="autofocus">
+                    <div class="mode-title">
+                        Cinematic Autofocus 
+                        <span class="mode-icon">🎬</span>
+                    </div>
+                    <div class="mode-desc">Rack focus simulator with depth-of-field blur.</div>
+                </div>
+
+                <!-- Video Upload -->
+                <div class="mode-card" onclick="enableVideoMode()" id="btnVideoMode">
+                    <div class="mode-title">
+                        Video Upload 
+                        <span class="mode-icon">🎞</span>
+                    </div>
+                    <div class="mode-desc">Apply AI effects to pre-recorded footage.</div>
+                </div>
+
+                <!-- Disabled -->
+                <div class="mode-card" style="opacity:0.5; cursor:not-allowed;">
+                    <div class="mode-title">Face Recognition <span class="mode-icon">🔒</span></div>
                 </div>
             </div>
 
-            <div>
-                <div class="card">
-                    <div class="card-header">🎯 AI Modes</div>
-                    <div class="mode-selector">
-                        <button class="mode-btn" data-mode="object_detection">
-                            <div style="font-size: 1.1em; font-weight: 600;">Object Detection</div>
-                            <div style="font-size: 0.85em; opacity: 0.8; margin-top: 5px;">
-                                Detect and classify objects in real-time
-                            </div>
-                        </button>
-                        <button class="mode-btn" data-mode="autofocus">
-                            <div style="font-size: 1.1em; font-weight: 600;">🎬 Cinematic Autofocus</div>
-                            <div style="font-size: 0.85em; opacity: 0.8; margin-top: 5px;">
-                                Click to track subject &middot; Double-click to reset
-                            </div>
-                        </button>
-                        <button class="mode-btn" data-mode="face_recognition" disabled>
-                            <div style="font-size: 1.1em; font-weight: 600;">Face Recognition</div>
-                            <div style="font-size: 0.85em; opacity: 0.8; margin-top: 5px;">
-                                Coming soon...
-                            </div>
-                        </button>
-                        <button class="mode-btn" data-mode="motion_tracking" disabled>
-                            <div style="font-size: 1.1em; font-weight: 600;">Motion Tracking</div>
-                            <div style="font-size: 0.85em; opacity: 0.8; margin-top: 5px;">
-                                Coming soon...
-                            </div>
-                        </button>
+            <div data-section="stats" style="margin-top:12px;">
+                <div class="panel-section-title">Real-time Telemetry</div>
+                
+                <!-- Video Actions (Export) -->
+                <div id="vExportPanel" style="display:none; margin-bottom:16px;">
+                    <button class="btn-action btn-glass" style="width:100%; justify-content:center; color:#60A5FA; border-color:rgba(96,165,250,0.3);" onclick="vStartExport()">
+                        Export Stabilized Video ➜
+                    </button>
+                    <div id="exportStatus" style="text-align:center; font-size:11px; margin-top:8px; opacity:0.7;"></div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-val" id="objCount">0</div>
+                        <div class="stat-lbl">Objects</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-val" id="inferTime">0ms</div>
+                        <div class="stat-lbl">Latency</div>
                     </div>
                 </div>
 
-                <div class="card" style="margin-top: 20px;">
-                    <div class="card-header">
-                        <span>🎯 Detections</span>
-                        <span id="detectionCount">0</span>
-                    </div>
-                    <div class="stats-grid">
-                        <div class="stat-card">
-                            <div class="stat-label">Inference</div>
-                            <div class="stat-value" id="inferenceTime">0ms</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-label">Objects</div>
-                            <div class="stat-value" id="objectCount">0</div>
-                        </div>
-                    </div>
-                    <div class="detections-list" id="detectionsList">
-                        <p style="text-align: center; opacity: 0.6; padding: 20px;">
-                            No detections yet
-                        </p>
-                    </div>
+                <div class="hardware-monitor" style="margin-top:12px;">
+                    <div class="hw-row"><span>Backend FPS</span> <span id="hwFps">0</span></div>
+                    <div class="hw-bar-bg"><div id="barFps" class="hw-bar-fill"></div></div>
+                    
+                    <div class="hw-row"><span>CPU Load</span> <span id="hwCpu">0%</span></div>
+                    <div class="hw-bar-bg"><div id="barCpu" class="hw-bar-fill"></div></div>
+                    
+                    <div class="hw-row"><span>Memory</span> <span id="hwMem">0%</span></div>
+                    <div class="hw-bar-bg"><div id="barMem" class="hw-bar-fill"></div></div>
+                </div>
+
+            </div>
+
+             <div data-section="detections" style="margin-top:12px; flex:1;">
+                <div class="panel-section-title">Detection Log</div>
+                <div id="detectionLog" style="font-size:12px; font-family:monospace; opacity:0.7; height:150px; overflow:hidden; mask-image:linear-gradient(to bottom, black 80%, transparent);">
+                    <!-- dynamic content -->
+                    <div style="padding:4px 0;">System ready...</div>
                 </div>
             </div>
+
         </div>
     </div>
 
+    <!-- JAVASCRIPT LOGIC -->
     <script>
+        // ── STATE ────────────────────────────────────────────────────────────
         let ws = null;
         let isConnected = false;
+        let currentMode = 'object_detection';
+        let isVideoMode = false;
+        
+        // Video Upload State
+        let vSessionId = null;
+        let vWs = null;
+        let vTotalFrames = 0;
+        let vCurrentFrame = 0;
+        let vFps = 25;
+        let vPlaying = false;
+        const vCanvas = document.getElementById('vCanvas');
+        const vCtx    = vCanvas.getContext('2d');
+        
+        // Use animation frame for smoother rendering
+        let vRafHandle = null;
+        let vFrameBuffer = [];
 
-        const elements = {
-            video: document.getElementById('videoStream'),
-            startBtn: document.getElementById('startBtn'),
-            stopBtn: document.getElementById('stopBtn'),
-            connectionStatus: document.getElementById('connectionStatus'),
-            connectionText: document.getElementById('connectionText'),
-            currentMode: document.getElementById('currentMode'),
-            alertLevel: document.getElementById('alertLevel'),
-            alertBanner: document.getElementById('alertBanner'),
-            alertText: document.getElementById('alertText'),
-            fpsDisplay: document.getElementById('fpsDisplay'),
-            detectionCount: document.getElementById('detectionCount'),
-            inferenceTime: document.getElementById('inferenceTime'),
-            objectCount: document.getElementById('objectCount'),
-            detectionsList: document.getElementById('detectionsList'),
-            fpsValue: document.getElementById('fpsValue'),
-            fpsBar: document.getElementById('fpsBar'),
-            cpuValue: document.getElementById('cpuValue'),
-            cpuBar: document.getElementById('cpuBar'),
-            memoryValue: document.getElementById('memoryValue'),
-            memoryBar: document.getElementById('memoryBar')
-        };
-
-        function connectWebSocket() {
+        // ── LIVE MODE ────────────────────────────────────────────────────────
+        function startVision() {
+            if(ws) ws.close();
             ws = new WebSocket('ws://localhost:8000/ws/video');
+            
+            updateConnStatus('connecting');
 
             ws.onopen = () => {
                 isConnected = true;
-                elements.connectionStatus.className = 'status-dot green';
-                elements.connectionText.textContent = 'Connected';
-                elements.startBtn.disabled = true;
-                elements.stopBtn.disabled = false;
-                console.log('✓ WebSocket connected');
+                updateConnStatus('connected');
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                
+                // Restore mode
+                ws.send(JSON.stringify({ type: 'switch_mode', mode: currentMode }));
             };
 
-        // Frame render guard — safe, with 200 ms timeout fallback
-        let renderPending = false;
-        function setVideoFrame(b64) {
-            if (renderPending) return;
-            renderPending = true;
-            const onDone = () => { renderPending = false; };
-            elements.video.onload  = onDone;
-            elements.video.onerror = onDone;
-            setTimeout(onDone, 200);   // safety release
-            elements.video.src = 'data:image/jpeg;base64,' + b64;
-        }
-
-            ws.onmessage = (event) => {
-                let data;
-                try { data = JSON.parse(event.data); }
-                catch(e) { console.error('JSON parse error', e); return; }
-
-                // Handle non-frame messages (acks, mode switches) without touching video
-                if (data.type) {
-                    if (data.type === 'autofocus_ack') {
-                        console.log('[AUTOFOCUS] Backend confirmed focus:', data.x, data.y);
-                    } else if (data.type === 'autofocus_reset') {
-                        console.log('[AUTOFOCUS] Focus reset confirmed');
-                    } else if (data.type === 'mode_switched') {
-                        console.log('[MODE] Switched to:', data.mode, 'success:', data.success);
-                    }
-                    return;
-                }
-
-                if (data.error) {
-                    console.error('Error:', data.error);
-                    return;
-                }
-
-                // Render frame (guarded against decode pile-up)
-                if (data.frame) {
-                    setVideoFrame(data.frame);
-                }
-
-                // Update stats
-                elements.fpsDisplay.textContent = `${data.fps} FPS`;
-                elements.currentMode.textContent = data.mode.toUpperCase();
-                elements.inferenceTime.textContent = `${data.inference_time || 0}ms`;
-                elements.objectCount.textContent = data.detections || 0;
-                elements.detectionCount.textContent = data.detections || 0;
-
-                // Update alert level
-                const alertLevel = data.alert_level || 'normal';
-                elements.alertLevel.textContent = alertLevel.toUpperCase();
-                elements.alertLevel.style.color = getAlertColor(alertLevel);
-
-                // Show alert banner
-                if (alertLevel !== 'normal') {
-                    elements.alertBanner.className = `alert-banner ${alertLevel} show`;
-                    elements.alertText.textContent = `${alertLevel.toUpperCase()} ALERT: ${data.detections} objects detected`;
-                } else {
-                    elements.alertBanner.className = 'alert-banner';
-                }
-
-                // Update detections list
-                if (data.objects && data.objects.length > 0) {
-                    elements.detectionsList.innerHTML = data.objects.map(obj => `
-                        <div class="detection-item">
-                            <span>${obj.class}</span>
-                            <span>${(obj.confidence * 100).toFixed(0)}%</span>
-                        </div>
-                    `).join('');
-                } else {
-                    elements.detectionsList.innerHTML = '<p style="text-align: center; opacity: 0.6; padding: 20px;">No detections</p>';
-                }
-
-                // Update performance metrics
-                if (data.performance) {
-                    const perf = data.performance;
-                    updateBar(elements.fpsValue, elements.fpsBar, perf.fps.current, 30);
-                    updateBar(elements.cpuValue, elements.cpuBar, perf.system.cpu, 100, '%');
-                    updateBar(elements.memoryValue, elements.memoryBar, perf.system.memory, 100, '%');
-                }
-
-                // Update autofocus tracker state badge
-                if (data.autofocus) {
-                    const badgeEl = document.getElementById('autofocusBadge');
-                    const state = data.autofocus.state;
-                    if (state === 'tracking') {
-                        badgeEl.style.background = 'rgba(16,185,129,0.85)';
-                        badgeEl.style.color = '#d1fae5';
-                        badgeEl.textContent = '\u25CF TRACKING';
-                    } else if (state === 'grace') {
-                        badgeEl.style.background = 'rgba(245,158,11,0.85)';
-                        badgeEl.style.color = '#fef3c7';
-                        badgeEl.textContent = '\u25CC Searching\u2026';
-                    } else {
-                        badgeEl.style.background = 'rgba(30,64,175,0.85)';
-                        badgeEl.style.color = '#93c5fd';
-                        badgeEl.textContent = '\u2728 CINEMATIC MODE';
-                    }
-                }
-            };
-
-            ws.onerror = (error) => {
-                console.error('WebSocket error:', error);
-                elements.connectionStatus.className = 'status-dot red';
-                elements.connectionText.textContent = 'Error';
+            ws.onmessage = (evt) => {
+                const data = JSON.parse(evt.data);
+                if(data.frame) renderLiveFrame(data);
+                if(data.performance) updateTelemetry(data);
+                if(data.autofocus) updateAutofocusState(data.autofocus);
             };
 
             ws.onclose = () => {
                 isConnected = false;
-                elements.connectionStatus.className = 'status-dot orange';
-                elements.connectionText.textContent = 'Disconnected';
-                elements.startBtn.disabled = false;
-                elements.stopBtn.disabled = true;
-                console.log('✓ WebSocket closed');
+                updateConnStatus('disconnected');
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
             };
         }
 
-        function updateBar(valueElement, barElement, value, max, suffix = '') {
-            const displayValue = Math.round(value);
-            valueElement.textContent = `${displayValue}${suffix}`;
-            const percentage = Math.min((value / max) * 100, 100);
-            barElement.style.width = `${percentage}%`;
+        function stopVision() {
+            if(ws) ws.close();
         }
 
-        function getAlertColor(level) {
-            const colors = {
-                'normal': '#10b981',
-                'warning': '#f59e0b',
-                'critical': '#ef4444'
-            };
-            return colors[level] || '#10b981';
-        }
-
-        elements.startBtn.addEventListener('click', () => {
-            connectWebSocket();
-        });
-
-        elements.stopBtn.addEventListener('click', () => {
-            if (ws) {
-                ws.close();
+        function renderLiveFrame(data) {
+            const img = document.getElementById('videoStream');
+            img.src = 'data:image/jpeg;base64,' + data.frame;
+            document.getElementById('fpsVal').innerText = data.fps || 0;
+            
+            // Log detections
+            if(data.objects && data.objects.length > 0) {
+                 const log = document.getElementById('detectionLog');
+                 const entry = document.createElement('div');
+                 entry.style.padding = '2px 0';
+                 entry.innerText = `> ${data.objects[0].class} (${Math.round(data.objects[0].confidence*100)}%)`;
+                 log.prepend(entry);
+                 if(log.children.length > 10) log.lastChild.remove();
             }
-        });
+        }
 
-        // ── Autofocus click/double-click handling ──────────────────
-        let autofocusActive = false;
-        let focusDotPos = null;
-        let lastClickTime = 0;
+        function updateTelemetry(data) {
+            document.getElementById('objCount').innerText = data.detections || 0;
+            document.getElementById('inferTime').innerText = (data.inference_time || 0) + 'ms';
+            
+            const perf = data.performance;
+            setProgress('barFps', perf.fps.current, 30);
+            document.getElementById('hwFps').innerText = perf.fps.current;
+            
+            setProgress('barCpu', perf.system.cpu, 100);
+            document.getElementById('hwCpu').innerText = perf.system.cpu + '%';
+            
+            setProgress('barMem', perf.system.memory, 100);
+            document.getElementById('hwMem').innerText = perf.system.memory + '%';
+        }
 
-        document.getElementById('videoContainer').addEventListener('pointerdown', (e) => {
-            if (!autofocusActive || !isConnected || !ws) return;
+        function setProgress(id, val, max) {
+            const el = document.getElementById(id);
+            const pct = Math.min((val/max)*100, 100);
+            el.style.width = pct + '%';
+            if(pct > 80) el.classList.add('active'); else el.classList.remove('active');
+        }
 
-            const container = document.getElementById('videoContainer');
-            const rect = container.getBoundingClientRect();
-            const px = e.clientX - rect.left;
-            const py = e.clientY - rect.top;
-
-            // Scale to backend frame resolution (640×480)
-            const fx = Math.round((px / rect.width) * 640);
-            const fy = Math.round((py / rect.height) * 480);
-
-            const now = Date.now();
-            const isDouble = (now - lastClickTime) < 300;
-
-            if (isDouble) {
-                console.log('[AUTOFOCUS] Double-click → reset focus');
-                ws.send(JSON.stringify({ type: 'autofocus_double_click' }));
-                // Hide overlays
-                document.getElementById('focusRing').style.display = 'none';
-                document.getElementById('focusDot').style.display = 'none';
-                document.getElementById('autofocusHint').style.display = 'flex';
-                focusDotPos = null;
+        function updateConnStatus(status) {
+            const dot = document.querySelector('#connStatus .status-dot');
+            const txt = document.getElementById('connText');
+            
+            if(status === 'connected') {
+                dot.className = 'status-dot active';
+                txt.innerText = 'Connected';
+            } else if (status === 'connecting') {
+                dot.className = 'status-dot warning';
+                txt.innerText = 'Connecting...';
             } else {
-                console.log('[AUTOFOCUS] Click → frame coords:', fx, fy);
-                ws.send(JSON.stringify({ type: 'autofocus_click', x: fx, y: fy }));
-
-                // Ripple ring
-                const ring = document.getElementById('focusRing');
-                ring.style.display = 'block';
-                ring.style.opacity = '1';
-                ring.style.left = (px - 30) + 'px';
-                ring.style.top  = (py - 30) + 'px';
-                // Fade out after 600ms
-                setTimeout(() => { ring.style.opacity = '0'; }, 100);
-                setTimeout(() => { ring.style.display = 'none'; ring.style.opacity = '1'; }, 700);
-
-                // Persistent dot
-                const dot = document.getElementById('focusDot');
-                dot.style.display = 'block';
-                dot.style.left = (px - 5) + 'px';
-                dot.style.top  = (py - 5) + 'px';
-
-                // Hide hint
-                document.getElementById('autofocusHint').style.display = 'none';
+                dot.className = 'status-dot inactive';
+                txt.innerText = 'Disconnected';
             }
-            lastClickTime = now;
+        }
+
+        function setMode(mode) {
+            // Exit video mode if active
+            if(isVideoMode) exitVideoMode();
+
+            currentMode = mode;
+            
+            // Update UI Cards
+            document.querySelectorAll('.mode-card').forEach(el => el.classList.remove('active'));
+            document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
+            
+            document.getElementById('modeLabel').innerText = mode.replace('_', ' ').toUpperCase();
+
+            // Send to backend
+            if(ws && isConnected) {
+                ws.send(JSON.stringify({ type: 'switch_mode', mode: mode }));
+            }
+
+            // Autofocus UI
+            const isAF = (mode === 'autofocus');
+            document.getElementById('autofocusHint').style.display = isAF ? 'block' : 'none';
+            document.getElementById('liveContainer').style.cursor = isAF ? 'crosshair' : 'default';
+        }
+
+        // ── AUTOFOCUS INTERACTION ────────────────────────────────────────────
+        document.getElementById('liveContainer').addEventListener('pointerdown', (e) => {
+            if(currentMode !== 'autofocus' || !isConnected) return;
+            
+            const rect = e.currentTarget.getBoundingClientRect();
+            // Assuming video is fitted containment, we need mapped coords
+            // For simplicity in this UI demo, we send relative coords * 640/480
+            const x = (e.clientX - rect.left) / rect.width;
+            const y = (e.clientY - rect.top) / rect.height;
+            
+            ws.send(JSON.stringify({ 
+                type: 'autofocus_click', 
+                x: Math.round(x*640), 
+                y: Math.round(y*480) 
+            }));
+
+            // Frontend feedback
+            const ring = document.getElementById('focusRing');
+            ring.style.display = 'block';
+            ring.style.left = (e.clientX - rect.left) + 'px';
+            ring.style.top = (e.clientY - rect.top) + 'px';
+            
+            // Remove animation class to re-trigger
+            ring.style.animation = 'none';
+            ring.offsetHeight; /* trigger reflow */
+            ring.style.animation = 'ping 1s cubic-bezier(0, 0, 0.2, 1)';
         });
 
-        // ── Mode selector ─────────────────────────────────────────────
-        document.querySelectorAll('.mode-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                if (btn.disabled) return;
+        function updateAutofocusState(af) {
+            const badge = document.getElementById('trackBadge');
+            if(af.state === 'tracking') {
+                badge.style.display = 'flex';
+                badge.innerHTML = '<span>● SUBJECT LOCKED</span>';
+                badge.style.color = 'var(--success)';
+            } else if (af.state === 'grace') {
+                badge.style.display = 'flex';
+                badge.innerHTML = '<span>○ SEARCHING...</span>';
+                badge.style.color = 'var(--warning)';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
 
-                const mode = btn.dataset.mode;
 
-                // Update UI
-                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
+        // ── VIDEO UPLOAD MODE ────────────────────────────────────────────────
+        function enableVideoMode() {
+            startTransition(() => {
+                isVideoMode = true;
+                
+                // UI Swaps
+                document.getElementById('liveContainer').style.display = 'none';
+                document.getElementById('videoUploadContainer').style.display = 'block';
+                
+                document.getElementById('liveControls').style.display = 'none';
+                document.getElementById('videoControls').style.display = 'flex';
+                
+                // Cards
+                document.querySelectorAll('.mode-card').forEach(el => el.classList.remove('active'));
+                document.getElementById('btnVideoMode').classList.add('active');
+                document.getElementById('modeLabel').innerText = "STUDIO EDITOR";
 
-                // Send mode switch via JSON protocol
-                if (ws && isConnected) {
-                    ws.send(JSON.stringify({ type: 'switch_mode', mode: mode }));
-                    console.log('[MODE] Switching to:', mode);
-                }
-
-                // Toggle autofocus state
-                autofocusActive = (mode === 'autofocus');
-                document.getElementById('videoContainer').style.cursor = autofocusActive ? 'crosshair' : 'default';
-
-                if (autofocusActive) {
-                    document.getElementById('autofocusHint').style.display = 'flex';
-                    document.getElementById('autofocusBadge').style.display = 'block';
-                    document.getElementById('focusDot').style.display = 'none';
-                } else {
-                    document.getElementById('autofocusHint').style.display = 'none';
-                    document.getElementById('autofocusBadge').style.display = 'none';
-                    document.getElementById('focusDot').style.display = 'none';
-                    document.getElementById('focusRing').style.display = 'none';
-                }
+                document.getElementById('vExportPanel').style.display = 'block';
             });
-        });
+        }
 
-        // Auto-activate object detection mode
-        document.querySelector('[data-mode="object_detection"]').classList.add('active');
+        function exitVideoMode() {
+            startTransition(() => {
+                isVideoMode = false;
+                
+                // UI Swaps
+                document.getElementById('liveContainer').style.display = 'block';
+                document.getElementById('videoUploadContainer').style.display = 'none';
+                
+                document.getElementById('liveControls').style.display = 'flex';
+                document.getElementById('videoControls').style.display = 'none';
+                
+                document.getElementById('vExportPanel').style.display = 'none';
+
+                // Cleanup
+                if(vWs) vWs.close();
+                if(vSessionId) {
+                    fetch(`http://localhost:8000/video/${vSessionId}`, {method:'DELETE'}).catch(()=>{});
+                    vSessionId = null;
+                }
+                
+                // Reset upload UI
+                document.getElementById('uploadZone').style.display = 'flex';
+                document.getElementById('vCanvas').style.display = 'none';
+                document.getElementById('vCanvasOverlay').style.display = 'none';
+            });
+            
+            // Return to object detection by default
+            setMode('object_detection');
+        }
+
+        // Animated transition helper
+        function startTransition(cb) {
+             const engine = document.querySelector('.visual-engine');
+             engine.style.opacity = 0;
+             setTimeout(() => {
+                 cb();
+                 engine.style.opacity = 1;
+             }, 200);
+        }
+
+        async function handleFile(file) {
+            if(!file) return;
+            const zone = document.getElementById('uploadZone');
+            zone.innerHTML = `<div class="status-dot active"></div> Uploading ${file.name}...`;
+
+            const fd = new FormData(); fd.append('file', file);
+            
+            try {
+                const r = await fetch('http://localhost:8000/video/upload', {method:'POST', body:fd});
+                const d = await r.json();
+                
+                vSessionId = d.session_id;
+                vTotalFrames = d.metadata.frame_count;
+                vFps = d.metadata.fps;
+                
+                // Setup playback UI
+                zone.style.display = 'none';
+                vCanvas.style.display = 'block';
+                document.getElementById('vCanvasOverlay').style.display = 'block';
+                vCanvas.width = d.metadata.width;
+                vCanvas.height = d.metadata.height;
+                
+                document.getElementById('vSeek').max = vTotalFrames - 1;
+                document.getElementById('vTimeTotal').innerText = fmtTime(d.metadata.duration);
+
+                connectVideoWs();
+
+            } catch(e) {
+                zone.innerHTML = `<span style="color:var(--error)">Error: ${e.message}</span>`;
+            }
+        }
+        
+        function handleDrop(e) {
+            e.preventDefault();
+            document.getElementById('uploadZone').classList.remove('drag-over');
+            handleFile(e.dataTransfer.files[0]);
+        }
+
+        function connectVideoWs() {
+            if(vWs) vWs.close();
+            vWs = new WebSocket(`ws://localhost:8000/ws/video-upload/${vSessionId}`);
+            
+            vWs.onopen = () => {
+                vWs.send(JSON.stringify({ type: 'video_seek', frame: 0 }));
+            };
+            
+            vWs.onmessage = (e) => {
+                const msg = JSON.parse(e.data);
+                if(msg.type === 'video_frame') renderVideoFrame(msg);
+                if(msg.type === 'export_progress') updateExport(msg.progress);
+                if(msg.type === 'export_done') finishExport(msg.url);
+            };
+        }
+
+        function renderVideoFrame(msg) {
+            const img = new Image();
+            img.onload = () => vCtx.drawImage(img, 0, 0, vCanvas.width, vCanvas.height);
+            img.src = 'data:image/jpeg;base64,' + msg.frame;
+            
+            vCurrentFrame = msg.frame_index;
+            document.getElementById('vSeek').value = vCurrentFrame;
+            document.getElementById('vTimeCurrent').innerText = fmtTime(vCurrentFrame/vFps);
+            
+            if(msg.state === 'tracking') {
+                document.getElementById('trackBadge').style.display = 'flex';
+                document.getElementById('trackBadge').style.color = 'var(--success)';
+            } else {
+                document.getElementById('trackBadge').style.display = 'none';
+            }
+        }
+
+        function vTogglePlay() {
+            vPlaying = !vPlaying;
+            document.querySelector('#vPlayBtn span').innerText = vPlaying ? '⏸ Pause' : '▶ Play';
+            vWs.send(JSON.stringify({ type: vPlaying ? 'video_play' : 'video_pause' }));
+        }
+
+        function vOnSeek(val) {
+            vPlaying = false;
+            document.querySelector('#vPlayBtn span').innerText = '▶ Play';
+            vWs.send(JSON.stringify({ type: 'video_seek', frame: parseInt(val) }));
+        }
+
+        function vUpdateSettings() {
+            const blur = parseInt(document.getElementById('blurSlide').value) / 100;
+            const bias = parseInt(document.getElementById('biasSlide').value) / 100;
+            
+            document.getElementById('blurVal').innerText = Math.round(blur*100) + '%';
+            document.getElementById('biasVal').innerText = bias;
+
+            vWs.send(JSON.stringify({
+                type: 'video_settings',
+                blur_strength: blur,
+                depth_bias: bias
+            }));
+        }
+
+        // Tap to track in video editor
+        document.getElementById('vCanvasOverlay').addEventListener('mousedown', (e) => {
+             const rect = e.target.getBoundingClientRect();
+             const px = (e.clientX - rect.left) / rect.width;
+             const py = (e.clientY - rect.top) / rect.height;
+             
+             // Map to actual video dims
+             const fx = Math.round(px * vCanvas.width);
+             const fy = Math.round(py * vCanvas.height);
+
+             vWs.send(JSON.stringify({
+                 type: 'video_click',
+                 x: fx, y: fy,
+                 frame: vCurrentFrame
+             }));
+        });
+        
+        // Export
+        function vStartExport() {
+            document.getElementById('exportProgressContainer').style.display = 'block';
+            document.getElementById('exportStatus').innerText = "Rendering stabilized video...";
+            vWs.send(JSON.stringify({ type: 'video_export' }));
+        }
+        
+        function updateExport(pct) {
+            document.getElementById('exportProgressFill').style.width = pct + '%';
+            document.getElementById('exportStatus').innerText = `Rendering frame ${pct}%`;
+        }
+        
+        function finishExport(url) {
+            document.getElementById('exportProgressFill').style.width = '100%';
+            document.getElementById('exportStatus').innerHTML = `<a href="http://localhost:8000${url}" target="_blank" style="color:var(--success)">Download Completed Video</a>`;
+        }
+
+        // Utils
+        function fmtTime(s) {
+            const m = Math.floor(s/60);
+            const sec = Math.floor(s%60).toString().padStart(2, '0');
+            return `${m}:${sec}`;
+        }
+        
+        // Init
+        document.querySelector('.visual-engine').style.opacity = 1;
+        document.querySelector('.visual-engine').style.transition = 'opacity 0.5s ease-out';
+
     </script>
 </body>
 </html>

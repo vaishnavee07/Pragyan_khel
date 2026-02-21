@@ -1,13 +1,27 @@
 """
 SentraVision AI Vision Platform
 Enterprise-grade modular AI inference engine
-Phase 4: RT-DETR Detection Upgrade
+Phase 4: RT-DETR Detection Upgrade  |  Phase 5: Video Upload Mode
 """
-from fastapi import FastAPI, WebSocket
+import os
+import shutil
+import uuid
+from pathlib import Path
+
+from fastapi import FastAPI, WebSocket, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from core.ai_engine import AIEngine
 from api.websocket_handler import WebSocketHandler
+from api.video_ws_handler import VideoWebSocketHandler
+from core.video_session import VideoSession
 import detection_config as cfg
+
+# ── Video session storage ─────────────────────────────────────────────
+_VIDEO_UPLOAD_DIR = Path(__file__).parent / "_uploads"
+_VIDEO_UPLOAD_DIR.mkdir(exist_ok=True)
+
+_video_sessions: dict[str, VideoSession] = {}   # session_id → VideoSession
 
 # Import detection module based on config
 if cfg.MODEL_TYPE == "rtdetr":
@@ -62,6 +76,7 @@ ai_engine.register_module('autofocus', autofocus_module)
 
 # Initialize WebSocket handler
 ws_handler = WebSocketHandler(ai_engine)
+video_ws_handler = VideoWebSocketHandler(_video_sessions)
 
 @app.on_event("startup")
 async def startup_event():
@@ -126,8 +141,91 @@ async def activate_mode(mode_name: str):
 
 @app.websocket("/ws/video")
 async def websocket_endpoint(websocket: WebSocket):
-    """Main WebSocket endpoint for video streaming"""
+    """Main WebSocket endpoint for live video streaming"""
     await ws_handler.handle_connection(websocket, camera_index=0)
+
+
+# ── Video Upload Mode routes ──────────────────────────────────────────
+
+@app.post("/video/upload")
+async def upload_video(file: UploadFile = File(...)):
+    """
+    Upload a video file (MP4 / MOV / AVI).
+    Returns session_id + metadata for the Video Upload Mode UI.
+    """
+    allowed_exts = {".mp4", ".mov", ".avi", ".mkv", ".webm"}
+    ext = Path(file.filename or "video.mp4").suffix.lower()
+    if ext not in allowed_exts:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Unsupported file type '{ext}'. Use: {', '.join(allowed_exts)}",
+        )
+
+    session_id = uuid.uuid4().hex[:12]
+    save_dir   = _VIDEO_UPLOAD_DIR / session_id
+    save_dir.mkdir(parents=True, exist_ok=True)
+    save_path  = save_dir / f"video{ext}"
+
+    # Stream to disk without loading into RAM
+    with open(save_path, "wb") as f:
+        while chunk := await file.read(1024 * 256):   # 256 KB chunks
+            f.write(chunk)
+
+    # Open a video session
+    session = VideoSession(str(save_path))
+    if not session.open():
+        shutil.rmtree(save_dir, ignore_errors=True)
+        raise HTTPException(status_code=422, detail="Could not decode video file")
+
+    _video_sessions[session_id] = session
+
+    return {
+        "session_id": session_id,
+        "metadata":   session.metadata,
+    }
+
+
+@app.get("/video/{session_id}/metadata")
+async def get_video_metadata(session_id: str):
+    """Return metadata for an existing video session."""
+    session = _video_sessions.get(session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session.metadata
+
+
+@app.delete("/video/{session_id}")
+async def delete_video_session(session_id: str):
+    """Close and clean up a video session."""
+    session = _video_sessions.pop(session_id, None)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    session.close()
+    save_dir = _VIDEO_UPLOAD_DIR / session_id
+    shutil.rmtree(save_dir, ignore_errors=True)
+    return {"deleted": session_id}
+
+
+@app.get("/video/exports/{filename}")
+async def download_export(filename: str):
+    """Download a rendered export file."""
+    # Search all session export dirs
+    for session in _video_sessions.values():
+        candidate = Path(session.file_path).parent / "exports" / filename
+        if candidate.is_file():
+            return FileResponse(
+                str(candidate),
+                media_type="video/mp4",
+                filename=filename,
+            )
+    raise HTTPException(status_code=404, detail="Export not found")
+
+
+@app.websocket("/ws/video-upload/{session_id}")
+async def video_upload_ws(websocket: WebSocket, session_id: str):
+    """WebSocket stream for Video Upload Mode playback and processing."""
+    await video_ws_handler.handle_connection(websocket, session_id)
+
 
 if __name__ == "__main__":
     import uvicorn
