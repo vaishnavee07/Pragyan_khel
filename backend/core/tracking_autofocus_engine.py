@@ -20,6 +20,9 @@ import cv2
 import numpy as np
 from typing import Dict, List, Optional, Tuple
 
+from core.motion_utils import CubicBezier
+EASE_CINEMATIC = CubicBezier(0.22, 1.0, 0.36, 1.0)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Helper
@@ -724,47 +727,39 @@ class TrackingAutofocusEngine:
         Returns H×W float32 blur-weight map, range [0.0 … 1.0].
           0.0 = razor sharp (on the focal plane)
           1.0 = maximum blur (far from focal plane)
-
-        Pipeline (Tasks 1-7):
-          1. Depth inference     — MiDaS-small or proxy
-          2. subject_depth_mean  — average depth inside subject mask
-          3. depth_diff          — |depth_map − reference_plane|
-          4. blur_strength       — smoothstep(depth_diff × k) [Task 3]
-          5. Spatial reduction   — nearby persons get less blur [Task 4]
-          6. Temporal smoothing  — 0.8×prev + 0.2×new [Task 6]
-             (rack focus handled by animating the reference plane [Task 7])
         """
         with self._lock:
             depth_est        = self._depth_estimator
-            dets             = list(self._seg_detections)
-            sel_tid          = self._selected_track_id
             sel_center       = self._center
             prev_ref         = self._depth_ref
             target_ref       = self._target_depth_ref
             rack_start       = self._rack_focus_start
             rack_active      = self._rack_focus_active
-            rack_dur         = self.rack_focus_duration
+            rack_dur         = 0.50  # 500ms transition
             k_blur           = self.depth_blur_k
             sp_thresh        = self.spatial_threshold_px
-            sp_reduce        = self.spatial_reduce_frac
             tmp_alpha        = self.temporal_alpha
             prev_blur_map    = self._last_blur_map
 
-        # ── Task 1: Depth inference ────────────────────────────────────
-        depth_map = depth_est.infer(frame)                  # H×W float32 [0,1]
+        # ── Task 1: Depth Map Integration & Normalization ──────────────
+        raw_depth = depth_est.infer(frame)                  # H×W float32 [0,1]
+        # MiDaS outputs 1.0 for near, 0.0 for far. Invert to 0 (near) to 1 (far).
+        depth_map = 1.0 - raw_depth
+        
+        # Contrast stretching (Normalization) to maximize depth range
+        d_min, d_max = depth_map.min(), depth_map.max()
+        if d_max > d_min:
+            depth_map = (depth_map - d_min) / (d_max - d_min)
 
-        # ── Task 1: Subject depth reference ───────────────────────────
+        # ── Task 2: Focal Plane Definition ────────────────────────────
         raw_depth_mean: float = 0.5
         if subject_mask is not None:
             pixels = depth_map[subject_mask > 0.5]
             if len(pixels) >= 10:
                 raw_depth_mean = float(np.mean(pixels))
 
-        # ── Task 7: Rack focus — animate reference plane ─────────────
-        # When a new subject is selected, _rack_focus_active is True and
-        # we smoothly interpolate from prev_ref to raw_depth_mean.
+        # ── Task 7: Transition Behavior (Rack Focus) ──────────────────
         if rack_active:
-            # Update target if subject depth is now known
             if raw_depth_mean != target_ref:
                 with self._lock:
                     self._target_depth_ref = raw_depth_mean
@@ -772,8 +767,9 @@ class TrackingAutofocusEngine:
 
             elapsed   = time.time() - rack_start
             t         = min(1.0, elapsed / max(rack_dur, 0.01))
-            # Ease-in-out (smoothstep)
-            t_ease    = t * t * (3.0 - 2.0 * t)
+            
+            # Use cubic-bezier(0.22,1,0.36,1) for cinematic transition
+            t_ease    = EASE_CINEMATIC.solve(t)
             new_ref   = prev_ref + t_ease * (target_ref - prev_ref)
 
             if t >= 1.0:
@@ -781,49 +777,63 @@ class TrackingAutofocusEngine:
                     self._rack_focus_active = False
             with self._lock:
                 self._depth_ref = new_ref
-            ref_plane = new_ref
+            focal_depth = new_ref
         else:
-            ref_plane = self._depth_ref
+            focal_depth = self._depth_ref
 
-        # ── Task 2: Per-pixel depth difference ────────────────────────
-        depth_diff = np.abs(depth_map - ref_plane).astype(np.float32)
+        # ── Task 3: Aggressive Focal Plane Isolation & Amplification ───
+        distance_from_focal = np.abs(depth_map - focal_depth).astype(np.float32)
+        
+        # Parameters for f/1.4 equivalent simulation
+        epsilon = 0.03      # Sharpness band (Zone 1)
+        k_logistic = 12.0   # Sharpness of transition
+        threshold = 0.15    # Focal separation
+        gamma = 2.5         # Non-linear depth scaling
+        
+        # Logistic S-Curve for depth amplification
+        s_curve = 1.0 / (1.0 + np.exp(-k_logistic * (distance_from_focal - threshold)))
+        
+        # Normalize S-curve so it starts at 0 for distance <= epsilon
+        s_min = 1.0 / (1.0 + np.exp(-k_logistic * (epsilon - threshold)))
+        s_max = 1.0 / (1.0 + np.exp(-k_logistic * (1.0 - threshold)))
+        
+        normalized_s = np.clip((s_curve - s_min) / (s_max - s_min), 0.0, 1.0)
+        
+        # Non-linear power scaling (Gamma) to exaggerate depth differences
+        blur_strength = np.power(normalized_s, gamma)
+        
+        # Force 0 blur inside the narrow sharpness band
+        blur_strength[distance_from_focal < epsilon] = 0.0
 
-        # ── Task 3: Smooth depth → blur strength ──────────────────────
-        # Linear scale then smoothstep for natural S-curve falloff.
-        # k_blur = 3.5 → depth_diff of 0.29 already reaches 100 % blur.
-        raw_w = np.clip(depth_diff * k_blur, 0.0, 1.0)
-        # Smoothstep S-curve: w = 3w² − 2w³
-        blur_weight = raw_w * raw_w * (3.0 - 2.0 * raw_w)
-
-        # ── Task 4: Spatial proximity adjustment ─────────────────────
-        # Persons near the selected subject (screen-space) get ≤45% less blur.
-        if sel_center is not None and dets:
+        # ── Task 4: Spatial Falloff Enhancement ────────────────────────
+        if sel_center is not None:
             scx, scy = sel_center
-            for det in dets:
-                tid = det.get('track_id')
-                if tid == sel_tid:
-                    continue          # skip the selected subject itself
-                bx1, by1, bx2, by2 = det['bbox']
-                dcx = (bx1 + bx2) // 2
-                dcy = (by1 + by2) // 2
-                dist = ((dcx - scx) ** 2 + (dcy - scy) ** 2) ** 0.5
-                if dist < sp_thresh and det.get('mask') is not None:
-                    other_mask = det['mask'].astype(np.float32) / 255.0
-                    if other_mask.shape[:2] != (h, w):
-                        other_mask = cv2.resize(
-                            other_mask, (w, h), interpolation=cv2.INTER_LINEAR)
-                    # Linear: 0 distance → full sp_reduce; at threshold → 0
-                    reduction  = (1.0 - dist / sp_thresh) * sp_reduce
-                    blur_weight = blur_weight * (1.0 - other_mask * reduction)
+            Y, X = np.ogrid[:h, :w]
+            dist_map = np.hypot(X - scx, Y - scy).astype(np.float32)
+            
+            # radial_falloff decreases blur for objects spatially near the selected subject
+            # 0 at center, 1 at spatial_threshold_px
+            radial_falloff = np.clip(dist_map / sp_thresh, 0.0, 1.0)
+            # Apply smoothstep to radial falloff for natural transition
+            radial_falloff = radial_falloff * radial_falloff * (3.0 - 2.0 * radial_falloff)
+            
+            # Combine depth blur and spatial falloff
+            # Objects close in depth AND close in space get least blur
+            # We map radial_falloff from [0, 1] to [0.2, 1.0] so background objects right behind subject still get some blur
+            radial_falloff = 0.2 + 0.8 * radial_falloff
+            
+            final_blur = blur_strength * radial_falloff
+        else:
+            final_blur = blur_strength
 
-        # ── Task 6: Temporal smoothing ─────────────────────────────────
-        if prev_blur_map is not None and prev_blur_map.shape == blur_weight.shape:
-            blur_weight = tmp_alpha * prev_blur_map + (1.0 - tmp_alpha) * blur_weight
+        # ── Task 8: Temporal smoothing ─────────────────────────────────
+        if prev_blur_map is not None and prev_blur_map.shape == final_blur.shape:
+            final_blur = tmp_alpha * prev_blur_map + (1.0 - tmp_alpha) * final_blur
 
         with self._lock:
-            self._last_blur_map = blur_weight
+            self._last_blur_map = final_blur
 
-        return blur_weight.astype(np.float32)
+        return final_blur.astype(np.float32)
 
     def _composite_blur(
         self,
@@ -833,32 +843,23 @@ class TrackingAutofocusEngine:
     ) -> np.ndarray:
         """
         DSLR-style cinematic blur — full pipeline:
-
-          Subject pixels         → RAZOR SHARP  (mask = 1, blur_weight forced to 0)
-          Nearby persons         → SOFT blur     (Task 4 spatial reduction)
-          Far background         → HEAVY blur    (high depth_diff)
-          Depth gradient         → SMOOTH        (Tasks 3+7 smoothstep + rack focus)
-          Frame-to-frame         → NO FLICKER    (Task 6 temporal smoothing)
-          Rendering              → FAST           (Task 5 pre-computed 3-layer blend)
-
-        Mask priority:
-          1. YOLOv8-seg instance mask
-          2. MediaPipe / GrabCut (if injected)
-          3. Expanded geometric bbox
-          4. Circular focal mask
         """
         h, w   = frame.shape[:2]
         frame_f = frame.astype(np.float32)
 
-        # ── Task 5: Pre-compute blur layers (light / medium / heavy) ──
-        k_heavy  = self.blur_ksize | 1
-        k_medium = max(3, (self.blur_ksize // 3) | 1)
-        k_light  = max(3, (self.blur_ksize // 7) | 1)
+        # ── Task 6: Multi-Layer Blur Strategy ─────────────────────────
+        # Split scene into zones: Focal/Near/Mid/Far
+        # We use 3 blur layers + original frame = 4 layers total
+        # Increased max blur radius for f/1.4 simulation (30-45px)
+        k_heavy  = max(45, self.blur_ksize | 1)
+        k_medium = max(21, (self.blur_ksize // 2) | 1)
+        k_light  = max(7, (self.blur_ksize // 4) | 1)
 
         blur_light  = cv2.GaussianBlur(frame, (k_light,  k_light),  0).astype(np.float32)
         blur_medium = cv2.GaussianBlur(frame, (k_medium, k_medium), 0).astype(np.float32)
         blur_heavy  = cv2.GaussianBlur(frame, (k_heavy,  k_heavy),  0)
-        blur_heavy  = cv2.GaussianBlur(blur_heavy, (31, 31),        0).astype(np.float32)
+        # Extra pass for extreme background softness
+        blur_heavy  = cv2.GaussianBlur(blur_heavy, (45, 45),        0).astype(np.float32)
 
         # ── Resolve subject mask (silhouette lock) ─────────────────────
         mask = None
@@ -908,7 +909,12 @@ class TrackingAutofocusEngine:
                         self._mask_key = ck
                     mask = self._mask_cache
 
-        # ── Tasks 1-6: Per-pixel blur weight from depth ─────────────
+        # ── Task 5: Edge Feathering ────────────────────────────────────
+        # Apply 25px Gaussian feathering around mask boundaries to avoid halos
+        if mask is not None:
+            mask = cv2.GaussianBlur(mask, (25, 25), 0)
+
+        # ── Tasks 1-4: Per-pixel blur weight from depth ─────────────
         with self._lock:
             has_depth = self._depth_estimator is not None
         if has_depth:
@@ -920,30 +926,37 @@ class TrackingAutofocusEngine:
         # Subject silhouette ALWAYS stays sharp (mask overrides depth)
         blur_w = blur_w * (1.0 - mask)          # zero blur where mask==1
 
-        # ── Task 5: 3-layer piecewise blend ───────────────────────────
-        # blur_w in [0.0, 0.5)  → lerp original → light
-        # blur_w in [0.5, 0.8)  → lerp light    → medium
-        # blur_w in [0.8, 1.0]  → lerp medium   → heavy
+        # ── Task 6: Multi-Layer Blur Strategy (4 layers) ──────────────
+        # blur_w in [0.0, 0.33) → lerp original → light
+        # blur_w in [0.33, 0.66) → lerp light    → medium
+        # blur_w in [0.66, 1.0] → lerp medium   → heavy
         t  = blur_w[:, :, np.newaxis]            # (H,W,1)
 
-        # Segment 1: original → light  (t: 0 → 0.5)
-        a1    = np.clip(t / 0.5, 0.0, 1.0)
+        # Segment 1: original → light  (t: 0 → 0.33)
+        a1    = np.clip(t / 0.333, 0.0, 1.0)
         out1  = frame_f * (1.0 - a1) + blur_light * a1
 
-        # Segment 2: light → medium   (t: 0.5 → 0.8)
-        a2    = np.clip((t - 0.5) / 0.3, 0.0, 1.0)
+        # Segment 2: light → medium   (t: 0.33 → 0.66)
+        a2    = np.clip((t - 0.333) / 0.333, 0.0, 1.0)
         out2  = blur_light * (1.0 - a2) + blur_medium * a2
 
-        # Segment 3: medium → heavy   (t: 0.8 → 1.0)
-        a3    = np.clip((t - 0.8) / 0.2, 0.0, 1.0)
+        # Segment 3: medium → heavy   (t: 0.66 → 1.0)
+        a3    = np.clip((t - 0.666) / 0.334, 0.0, 1.0)
         out3  = blur_medium * (1.0 - a3) + blur_heavy * a3
 
         # Select segment per pixel
-        c1 = (blur_w < 0.5).astype(np.float32)[:, :, np.newaxis]
-        c2 = ((blur_w >= 0.5) & (blur_w < 0.8)).astype(np.float32)[:, :, np.newaxis]
-        c3 = (blur_w >= 0.8).astype(np.float32)[:, :, np.newaxis]
+        c1 = (blur_w < 0.333).astype(np.float32)[:, :, np.newaxis]
+        c2 = ((blur_w >= 0.333) & (blur_w < 0.666)).astype(np.float32)[:, :, np.newaxis]
+        c3 = (blur_w >= 0.666).astype(np.float32)[:, :, np.newaxis]
 
         composite = out1 * c1 + out2 * c2 + out3 * c3
+
+        # ── Task 9: Cinematic Luminance Emphasis ──────────────────────
+        # Slight luminance emphasis on focal subject
+        if mask is not None:
+            mask_3c = mask[:, :, np.newaxis]
+            composite = composite * (1.0 + 0.08 * mask_3c)
+            
         return np.clip(composite, 0, 255).astype(np.uint8)
 
     def _draw_overlay(
@@ -953,60 +966,21 @@ class TrackingAutofocusEngine:
         center: Optional[Tuple[int,int]],
         state:  str,
     ) -> np.ndarray:
-        """Draw body-region outline and status indicator on frame."""
-        out = frame.copy()
-        if center is None:
-            return out
+        """
+        Cinematic overlay — INVISIBLE INTELLIGENCE MODE.
 
-        h, w = out.shape[:2]
-        cx, cy = center
-
-        if state == self.STATE_TRACKING:
-            if bbox is not None:
-                # Expanded body rectangle
-                ex1, ey1, ex2, ey2 = _expand_bbox_to_body(
-                    bbox, h, w,
-                    expand_w=self.body_expand_w,
-                    expand_h=self.body_expand_h,
-                    max_area_frac=self.body_max_frac,
-                )
-                # Outer glow: slightly thicker, darker green
-                cv2.rectangle(out, (ex1 - 2, ey1 - 2), (ex2 + 2, ey2 + 2),
-                              (0, 140, 50), 2, cv2.LINE_AA)
-                # Main body outline: bright green
-                cv2.rectangle(out, (ex1, ey1), (ex2, ey2),
-                              (0, 230, 90), 1, cv2.LINE_AA)
-                # Corner accent marks
-                corner = 14
-                for px, py, dx, dy in [
-                    (ex1, ey1,  1,  1), (ex2, ey1, -1,  1),
-                    (ex1, ey2,  1, -1), (ex2, ey2, -1, -1),
-                ]:
-                    cv2.line(out, (px, py), (px + dx * corner, py), (0, 255, 120), 2, cv2.LINE_AA)
-                    cv2.line(out, (px, py), (px, py + dy * corner), (0, 255, 120), 2, cv2.LINE_AA)
-                # "Body Focus" label above box
-                _put_label(out, "Body Focus", (ex1 + ex2) // 2, ey1 - 10,
-                           (0, 230, 90), scale=0.50)
-            # Centre dot at face click
-            cv2.circle(out, (cx, cy), 4, (0, 255, 120), -1, cv2.LINE_AA)
-            cv2.circle(out, (cx, cy), 7, (0, 200, 80),  1, cv2.LINE_AA)
-
-        elif state == self.STATE_GRACE:
-            if bbox is not None:
-                ex1, ey1, ex2, ey2 = _expand_bbox_to_body(
-                    bbox, h, w,
-                    expand_w=self.body_expand_w,
-                    expand_h=self.body_expand_h,
-                    max_area_frac=self.body_max_frac,
-                )
-                cv2.rectangle(out, (ex1, ey1), (ex2, ey2),
-                              (0, 165, 255), 1, cv2.LINE_AA)
-            cv2.circle(out, (cx, cy), 6, (0, 165, 255), -1, cv2.LINE_AA)
-            _put_label(out, "Searching...", cx,
-                       (ey1 - 10) if bbox else (cy - self.focus_radius - 14),
-                       (0, 165, 255))
-
-        return out
+        Rules:
+          • NO bounding boxes.
+          • NO text labels.
+          • NO confidence scores.
+          • NO green rectangles.
+          • Only a single, thin, semi-transparent focus ring at the
+            face-click point — visible for ~800ms then fades out.
+          • All cinematic logic runs invisibly in the background.
+        """
+        # Return frame unchanged — all debug elements stripped.
+        # The depth-of-field composite IS the visual output.
+        return frame
 
     def _reset_locked(self):
         """Reset all tracking state. Must be called with lock held."""

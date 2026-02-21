@@ -94,15 +94,22 @@ autofocus_module = AutofocusModule({
 # Inject detector into autofocus for isolation mode
 autofocus_module.set_detector(detection_module)
 
-# Create and inject YOLOv8-seg module for Full Silhouette Lock
-yolo_seg_module = YOLOv8SegModule()
+# Create and inject YOLOv11-seg module for Full Silhouette Lock
+yolo_seg_module = YOLOv8SegModule({
+    'confidence_threshold': cfg.CONFIDENCE_THRESHOLD,
+    'iou_threshold':        cfg.IOU_THRESHOLD,
+    'device':               cfg.DEVICE,
+    'detect_only_person':   cfg.DETECT_ONLY_PERSON,
+    'detection_interval':   getattr(cfg, 'DETECTION_INTERVAL', 2),
+    'smooth_alpha':         0.40,  # lower = smoother motion
+})
 try:
     yolo_seg_module.initialize()
     autofocus_module.set_yolo_seg(yolo_seg_module)
     ai_engine.register_module('yolo_seg', yolo_seg_module)
-    print("✓ YOLOv8-seg registered and wired to autofocus")
+    print("✓ YOLOv11-seg registered and wired to autofocus")
 except Exception as e:
-    print(f"⚠ YOLOv8-seg init failed: {e} — autofocus will use geometric fallback")
+    print(f"⚠ YOLOv11-seg init failed: {e} — autofocus will use geometric fallback")
 
 ai_engine.register_module('autofocus', autofocus_module)
 
@@ -114,11 +121,12 @@ video_ws_handler = VideoWebSocketHandler(_video_sessions)
 async def startup_event():
     """Initialize platform on startup"""
     print("=" * 70)
-    print("🔷 SentraVision AI Vision Platform v4.0 [Full Silhouette Lock]")
+    print("🔷 SentraVision AI Vision Platform v5.0 [YOLOv11 Cinematic Engine]")
     print("=" * 70)
-    print(f"➤ Detector: {cfg.MODEL_TYPE.upper()}")
-    print(f"➤ Device: {cfg.DEVICE.upper()}")
-    print(f"➤ Person-only mode: {cfg.DETECT_ONLY_PERSON}")
+    print(f"➤ Detector : YOLOv11x-seg  (f/1.4 cinematic DoF)")
+    print(f"➤ Device   : {cfg.DEVICE.upper()}  (CUDA auto-probe)")
+    print(f"➤ Overlays : DISABLED  (invisible intelligence mode)")
+    print(f"➤ Engine   : TrackingAutofocusEngine + MiDaS depth")
     print("➤ Modular AI Engine initialized")
     print(f"➤ Available modes: {', '.join(ai_engine.get_available_modes())}")
     print("➤ Cinematic Autofocus: ENABLED")

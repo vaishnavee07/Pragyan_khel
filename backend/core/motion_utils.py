@@ -1,4 +1,4 @@
-īimport math
+import math
 import time
 
 class CubicBezier:
